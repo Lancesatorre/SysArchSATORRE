@@ -2,12 +2,15 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import LoginPage from './Pages/LoginPage';
 import LayoutNav from "./Components/LayoutNav";
 import Landing from "./Pages/Landing";
+import SignUp from "./Pages/SignUp";
+
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignUp />} />
         <Route element={<LayoutNav />}>
            <Route path="/" element={<Landing />} />
        
