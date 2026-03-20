@@ -14,7 +14,23 @@ define('ADMIN_ROLE', 'admin');
 // Get the origin from the request
 $origin = $_SERVER['HTTP_ORIGIN'] ?? 'http://localhost:5173';
 
-// Set response content type early; CORS headers handled by .htaccess
+// Basic CORS handling
+$allowed_origins = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost',
+    'http://127.0.0.1',
+];
+
+if (in_array($origin, $allowed_origins, true)) {
+    header("Access-Control-Allow-Origin: {$origin}", true);
+    header('Vary: Origin');
+    header('Access-Control-Allow-Credentials: true', true);
+    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With', true);
+    header('Access-Control-Allow-Methods: POST, OPTIONS', true);
+}
+
+// Set response content type early
 header("Content-Type: application/json; charset=UTF-8");
 
 function debug_log($message) {
@@ -72,6 +88,26 @@ if (!$db->query($create_table_query)) {
     debug_log("Failed to create table: " . $db->error);
 } else {
     debug_log("Table created or already exists");
+}
+
+// Ensure all required columns exist (for existing tables)
+$columns_to_add = [
+    'middle_name' => 'VARCHAR(100)',
+    'course' => 'VARCHAR(50)',
+    'year_level' => 'INT',
+    'address' => 'VARCHAR(255)',
+];
+
+foreach ($columns_to_add as $column => $type) {
+    $check_column = $db->query("SELECT * FROM information_schema.COLUMNS WHERE TABLE_NAME = 'students' AND COLUMN_NAME = '$column' AND TABLE_SCHEMA = 'sitinsatorre'");
+    if ($check_column && $check_column->num_rows === 0) {
+        $alter_query = "ALTER TABLE students ADD COLUMN $column $type";
+        if (!$db->query($alter_query)) {
+            debug_log("Failed to add column $column: " . $db->error);
+        } else {
+            debug_log("Column $column added successfully");
+        }
+    }
 }
 
 // Get action and request data
@@ -178,7 +214,7 @@ try {
             exit();
         }
 
-        $query = "SELECT id, id_number, first_name, last_name, email FROM students WHERE id_number = '$id_number'";
+        $query = "SELECT id, id_number, first_name, last_name, middle_name, email, course, year_level, address FROM students WHERE id_number = '$id_number'";
         $result = $db->query($query);
 
         debug_log("Login query executed for ID: " . $id_number);

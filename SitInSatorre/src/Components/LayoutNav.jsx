@@ -1,12 +1,24 @@
 import React from 'react'
-import Navbar from './Navbar';
-import { Outlet } from "react-router-dom";
+import Navbar from './Navbar'
+import { Outlet } from 'react-router-dom'
 
-export default function 
-() {
+export default function Layout() {
   return (
-    <div className="min-h-screen bg-gradient-to-br  from-gray-400 to-white">
+    <div className="min-h-screen bg-gradient-to-br from-gray-300 via-gray-100 to-white relative overflow-hidden">
 
+      {/* Top-left purple glow */}
+      <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-[#3c096c]/15 blur-3xl pointer-events-none" />
+
+      {/* Top-right faint orange */}
+      <div className="absolute -top-10 right-0 w-72 h-72 rounded-full bg-[#ff9100]/10 blur-3xl pointer-events-none" />
+
+      {/* Bottom-left soft violet */}
+      <div className="absolute bottom-0 -left-10 w-64 h-64 rounded-full bg-violet-300/15 blur-3xl pointer-events-none" />
+
+      {/* Bottom-right warm glow */}
+      <div className="absolute -bottom-16 -right-16 w-80 h-80 rounded-full bg-[#ff9100]/10 blur-3xl pointer-events-none" />
+
+      {/* Content */}
       <div className="relative z-10 pt-3">
         <Navbar />
         <main className="px-10">
@@ -15,6 +27,5 @@ export default function
       </div>
 
     </div>
-
-  );
+  )
 }

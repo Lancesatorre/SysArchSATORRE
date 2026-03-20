@@ -1,4 +1,13 @@
-const API_URL = "http://localhost:8080/SysArchSATORRE/SitInSatorre/server/authenticate.php";
+// Prefer env override; otherwise choose a sensible default
+// - Vite dev (port 5173): call Apache on default http port
+// - Otherwise, same origin
+const API_URL = (() => {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  if (window.location.port === '5173') {
+    return 'http://localhost/SysArchSATORRE/SitInSatorre/server/authenticate.php';
+  }
+  return `${window.location.origin}/SysArchSATORRE/SitInSatorre/server/authenticate.php`;
+})();
 
 // Helper function to handle API requests
 const apiRequest = async (action, data) => {
@@ -118,6 +127,24 @@ export const authService = {
   clearAuth: () => {
     localStorage.removeItem("user");
     localStorage.removeItem("isLoggedIn");
+  },
+
+  // =========================
+  // FETCH USER PROFILE
+  // =========================
+  fetchProfile: async () => {
+    try {
+      // For now, return cached user data
+      // In future, this can be replaced with an API call to fetch fresh data
+      const user = localStorage.getItem("user");
+      if (!user) {
+        throw new Error("No user session found");
+      }
+      return JSON.parse(user);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      throw error;
+    }
   },
 
 };
