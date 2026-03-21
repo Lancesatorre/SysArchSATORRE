@@ -48,6 +48,11 @@ const apiRequest = async (action, data) => {
 
 export const authService = {
 
+  getAdminId: () => {
+    const user = authService.getUser();
+    return user?.id_number || "";
+  },
+
   // =========================
   // REGISTER
   // =========================
@@ -83,7 +88,12 @@ export const authService = {
 
       // Save user session
       if (response.user) {
-        localStorage.setItem("user", JSON.stringify(response.user));
+        // Map profile_picture from backend to photo for frontend consistency
+        const user = response.user;
+        if (user.profile_picture && !user.photo) {
+          user.photo = user.profile_picture;
+        }
+        localStorage.setItem("user", JSON.stringify(user));
         localStorage.setItem("isLoggedIn", "true");
       }
 
@@ -104,15 +114,161 @@ export const authService = {
         lastName: profileData.lastName,
         middleName: profileData.middleName || "",
         address: profileData.address || "",
+        photo: profileData.photo || null,
       });
 
       if (response.user) {
-        localStorage.setItem("user", JSON.stringify(response.user));
+        // Map profile_picture from backend to photo for frontend consistency
+        const user = response.user;
+        if (user.profile_picture && !user.photo) {
+          user.photo = user.profile_picture;
+        }
+        localStorage.setItem("user", JSON.stringify(user));
       }
 
       return response;
     } catch (error) {
       throw new Error(error.message || "Profile update failed");
+    }
+  },
+
+  // =========================
+  // ADMIN - SEARCH STUDENT
+  // =========================
+  adminSearchStudent: async (studentKeyword) => {
+    try {
+      const response = await apiRequest("adminSearchStudent", {
+        adminId: authService.getAdminId(),
+        studentKeyword,
+      });
+      return response.students || [];
+    } catch (error) {
+      throw new Error(error.message || "Failed to search student");
+    }
+  },
+
+  // =========================
+  // ADMIN - START SESSION
+  // =========================
+  adminStartSession: async (studentIdNumber, room = "", purpose = "") => {
+    try {
+      return await apiRequest("adminStartSession", {
+        adminId: authService.getAdminId(),
+        studentIdNumber,
+        room,
+        purpose,
+      });
+    } catch (error) {
+      throw new Error(error.message || "Failed to start session");
+    }
+  },
+
+  // =========================
+  // ADMIN - LIST STUDENTS
+  // =========================
+  adminListStudents: async () => {
+    try {
+      const response = await apiRequest("adminListStudents", {
+        adminId: authService.getAdminId(),
+      });
+      return response.students || [];
+    } catch (error) {
+      throw new Error(error.message || "Failed to load students");
+    }
+  },
+
+  // =========================
+  // ADMIN - UPDATE STUDENT
+  // =========================
+  adminUpdateStudent: async (student) => {
+    try {
+      return await apiRequest("adminUpdateStudent", {
+        adminId: authService.getAdminId(),
+        id: student.id,
+        firstName: student.first_name,
+        lastName: student.last_name,
+        middleName: student.middle_name || "",
+        course: student.course || "",
+        yearLevel: Number(student.year_level || 0),
+        address: student.address || "",
+        availableSessions: Number(student.available_sessions || 0),
+      });
+    } catch (error) {
+      throw new Error(error.message || "Failed to update student");
+    }
+  },
+
+  // =========================
+  // ADMIN - DELETE STUDENT
+  // =========================
+  adminDeleteStudent: async (id) => {
+    try {
+      return await apiRequest("adminDeleteStudent", {
+        adminId: authService.getAdminId(),
+        id,
+      });
+    } catch (error) {
+      throw new Error(error.message || "Failed to delete student");
+    }
+  },
+
+  // =========================
+  // ADMIN - CURRENT SESSIONS
+  // =========================
+  adminCurrentSessions: async () => {
+    try {
+      const response = await apiRequest("adminCurrentSessions", {
+        adminId: authService.getAdminId(),
+      });
+      return response.sessions || [];
+    } catch (error) {
+      throw new Error(error.message || "Failed to load current sessions");
+    }
+  },
+
+  // =========================
+  // ADMIN - END SESSION
+  // =========================
+  adminEndSession: async (sessionId) => {
+    try {
+      return await apiRequest("adminEndSession", {
+        adminId: authService.getAdminId(),
+        sessionId,
+      });
+    } catch (error) {
+      throw new Error(error.message || "Failed to end session");
+    }
+  },
+
+  // =========================
+  // ADMIN - SIT-IN RECORDS
+  // =========================
+  adminSitInRecords: async () => {
+    try {
+      const response = await apiRequest("adminSitInRecords", {
+        adminId: authService.getAdminId(),
+      });
+      return response.records || [];
+    } catch (error) {
+      throw new Error(error.message || "Failed to load sit-in records");
+    }
+  },
+
+  // =========================
+  // STUDENT - PROFILE STATS
+  // =========================
+  fetchStudentProfileStats: async (idNumber) => {
+    try {
+      const response = await apiRequest("studentProfileStats", { idNumber });
+      return response.stats || {
+        total_sessions: 0,
+        this_month: 0,
+        hours_logged: 0,
+        avg_per_week: 0,
+        lab_usage: [],
+      };
+    } catch (error) {
+      throw new Error(error.message || "Failed to load profile stats");
     }
   },
 

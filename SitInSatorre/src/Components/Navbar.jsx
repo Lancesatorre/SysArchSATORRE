@@ -9,11 +9,13 @@ export default function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [sitInOpen, setSitInOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
 
   const profileRef = useRef(null);
   const notifRef = useRef(null);
+  const sitInRef = useRef(null);
 
   useEffect(() => {
     setIsLoggedIn(authService.isLoggedIn());
@@ -26,6 +28,7 @@ export default function Navbar() {
     const handleClickOutside = (e) => {
       if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false);
       if (notifRef.current && !notifRef.current.contains(e.target)) setNotificationOpen(false);
+      if (sitInRef.current && !sitInRef.current.contains(e.target)) setSitInOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -49,11 +52,13 @@ export default function Navbar() {
     : 'Student';
 
   const roleLabel = user?.role === 'admin' ? 'Admin' : 'Student';
+  const dashboardPath = user?.role === 'admin' ? '/admin/dashboard' : '/student/dashboard';
+  const profilePath = user?.role === 'admin' ? '/admin/dashboard' : '/student/profile';
 
   return (
     <>
       {logoutLoading && <LoadingOverlay message="Logging out..." />}
-      <nav className='min-h-[5vh] mx-40 bg-[#3c096c] flex justify-between shadow-2xl items-center rounded-4xl px-15 mb-5 border border-gray-900'>
+      <nav className='min-h-[5vh] mx-40 bg-[#3c096c] flex justify-between shadow-md shadow-[#ff9100]/20 items-center rounded-4xl px-15 mb-5 '>
         <div className='flex items-center justify-center flex-row gap-3'>
           <img src={ccsLogo} alt="CCS Logo" className='rounded-md h-8 w-8 border border-[#240046]'/>
           <h1 className='font-bold text-lg text-white tracking-wider'>
@@ -86,9 +91,33 @@ export default function Navbar() {
           ) : (
             <>
               <div className='text-white flex justify-center items-center gap-8 py-4'>
-                <Link to="/student/dashboard" className='hover:text-[#ff9100] transition duration-300'>Home</Link>
-                <Link to="/student/history" className='hover:text-[#ff9100] transition duration-300'>History</Link>
-                <Link to="/student/reservation" className='hover:text-[#ff9100] transition duration-300'>Reservation</Link>
+                <Link to={dashboardPath} className='hover:text-[#ff9100] transition duration-300'>Home</Link>
+                {user?.role === 'admin' ? (
+                  <div ref={sitInRef} className='relative'>
+                    <button
+                      onClick={() => setSitInOpen(!sitInOpen)}
+                      className='hover:text-[#ff9100] transition duration-300 flex items-center gap-1'
+                    >
+                      Sit In
+                      <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform ${sitInOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {sitInOpen && (
+                      <div className='absolute left-1/2 -translate-x-1/2 top-full mt-2 w-48 bg-white rounded-lg shadow-xl z-50 border border-[#3c096c] overflow-hidden'>
+                        <Link to="/admin/search-student" onClick={() => setSitInOpen(false)} className='block px-4 py-3 text-[#3c096c] font-semibold text-sm hover:bg-[#3c096c] hover:text-white transition duration-300'>Search Student</Link>
+                        <Link to="/admin/current-sessions" onClick={() => setSitInOpen(false)} className='block px-4 py-3 text-[#3c096c] font-semibold text-sm hover:bg-[#3c096c] hover:text-white transition duration-300'>Current Sessions</Link>
+                        <Link to="/admin/sit-in-records" onClick={() => setSitInOpen(false)} className='block px-4 py-3 text-[#3c096c] font-semibold text-sm hover:bg-[#3c096c] hover:text-white transition duration-300'>Sit in Records</Link>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <Link to="/student/history" className='hover:text-[#ff9100] transition duration-300'>History</Link>
+                    <Link to="/student/reservation" className='hover:text-[#ff9100] transition duration-300'>Reservation</Link>
+                  </>
+                )}
 
                 {/* Notification Dropdown */}
                 <div ref={notifRef} className='relative'>
@@ -201,9 +230,9 @@ export default function Navbar() {
 
                     {/* Menu items */}
                     <div style={{ padding: '6px' }}>
-                      <ProfileMenuItem to="/student/profile" icon={
+                      <ProfileMenuItem to={profilePath} icon={
                         <svg viewBox="0 0 24 24" fill="currentColor"><path fillRule="evenodd" d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" clipRule="evenodd"/></svg>
-                      } onClick={() => setProfileOpen(false)}>Profile</ProfileMenuItem>
+                      } onClick={() => setProfileOpen(false)}>{user?.role === 'admin' ? 'Dashboard' : 'Profile'}</ProfileMenuItem>
 
                       <ProfileMenuItem to="/settings" icon={
                         <svg viewBox="0 0 24 24" fill="currentColor"><path fillRule="evenodd" d="M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 4.889c-.02.12-.115.26-.297.348a7.493 7.493 0 0 0-.986.57c-.166.115-.334.126-.45.083L6.3 5.508a1.875 1.875 0 0 0-2.282.819l-.922 1.597a1.875 1.875 0 0 0 .432 2.385l.84.692c.095.078.17.229.154.43a7.598 7.598 0 0 0 0 1.139c.015.2-.059.352-.153.43l-.841.692a1.875 1.875 0 0 0-.432 2.385l.922 1.597a1.875 1.875 0 0 0 2.282.818l1.019-.382c.115-.043.283-.031.45.082.312.214.641.405.985.57.182.088.277.228.297.35l.178 1.071c.151.904.933 1.567 1.85 1.567h1.844c.916 0 1.699-.663 1.85-1.567l.178-1.072c.02-.12.114-.26.297-.349.344-.165.673-.356.985-.57.167-.114.335-.125.45-.082l1.02.382a1.875 1.875 0 0 0 2.28-.819l.923-1.597a1.875 1.875 0 0 0-.432-2.385l-.84-.692c-.095-.078-.17-.229-.154-.43a7.614 7.614 0 0 0 0-1.139c-.016-.2.059-.352.153-.43l.84-.692c.708-.582.891-1.59.433-2.385l-.922-1.597a1.875 1.875 0 0 0-2.282-.818l-1.02.382c-.114.043-.282.031-.449-.083a7.49 7.49 0 0 0-.985-.57c-.183-.087-.277-.227-.297-.348l-.179-1.072a1.875 1.875 0 0 0-1.85-1.567h-1.843ZM12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z" clipRule="evenodd"/></svg>

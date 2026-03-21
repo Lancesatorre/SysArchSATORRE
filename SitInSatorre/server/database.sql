@@ -13,11 +13,44 @@ CREATE TABLE IF NOT EXISTS students (
     course VARCHAR(50) NOT NULL DEFAULT 'BSIT',
     year_level INT DEFAULT 1,
     address VARCHAR(255),
+    available_sessions INT NOT NULL DEFAULT 30,
+    profile_picture LONGTEXT,
     password VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_id_number (id_number),
     INDEX idx_email (email)
+);
+
+-- Active sit-in sessions (currently ongoing)
+CREATE TABLE IF NOT EXISTS sit_in_sessions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    student_id_number VARCHAR(50) NOT NULL,
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ended_at TIMESTAMP NULL DEFAULT NULL,
+    status ENUM('active', 'ended') NOT NULL DEFAULT 'active',
+    ended_by VARCHAR(50) DEFAULT NULL,
+    INDEX idx_student_id (student_id),
+    INDEX idx_student_id_number (student_id_number),
+    INDEX idx_status (status),
+    CONSTRAINT fk_sit_in_sessions_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+);
+
+-- Permanent sit-in records (historical archive)
+CREATE TABLE IF NOT EXISTS sit_in_records (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    session_id INT NOT NULL,
+    student_id INT NOT NULL,
+    student_id_number VARCHAR(50) NOT NULL,
+    started_at DATETIME NOT NULL,
+    ended_at DATETIME NOT NULL,
+    duration_minutes INT NOT NULL DEFAULT 0,
+    ended_by VARCHAR(50) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_record_student_id (student_id),
+    INDEX idx_record_student_id_number (student_id_number),
+    INDEX idx_record_created (created_at)
 );
 
 -- Add a default test user (optional)

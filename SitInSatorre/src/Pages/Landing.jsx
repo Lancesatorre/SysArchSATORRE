@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom'
 import ccsLogo from '../assets/ccsmainlogo.png'
 
 const LABS = [
-  { id: 'Lab 524', floor: '2F', used: 12, seats: 40, status: 'Open' },
-  { id: 'Lab 526', floor: '2F', used: 38, seats: 38, status: 'Full' },
-  { id: 'Lab 528', floor: '3F', used: 0,  seats: 40, status: 'Open' },
-  { id: 'Lab 530', floor: '3F', used: 21, seats: 36, status: 'Open' },
+  { id: 'Lab 524', floor: '5F', used: 12, seats: 40, status: 'Open' },
+  { id: 'Lab 526', floor: '5F', used: 38, seats: 38, status: 'Full' },
+  { id: 'Lab 528', floor: '5F', used: 0,  seats: 40, status: 'Open' },
+  { id: 'Lab 530', floor: '5F', used: 21, seats: 36, status: 'Open' },
 ]
 
 // ── Minimal SVG icons for features ──

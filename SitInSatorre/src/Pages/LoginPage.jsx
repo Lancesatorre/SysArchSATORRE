@@ -41,10 +41,14 @@ export default function LoginPage() {
     setHighlightAllFields(false);
     setLoading(true);
     try {
-      await authService.login(credentials);
+      const response = await authService.login(credentials);
       setPasswordError('');
       setHighlightAllFields(false);
-      navigate('/student/dashboard');
+      if (response?.user?.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/student/dashboard');
+      }
     } catch (err) {
       const errorMsg = err.message || 'Login failed. Please try again.';
       if (errorMsg.includes('Invalid password')) {

@@ -62,7 +62,8 @@ export default function SignUp() {
         course: form.course, courseLevel: parseInt(form.courseLevel), address: form.address,
       });
       setSuccess('Registration successful! Redirecting to login...');
-      setTimeout(() => navigate('/login'), 2000);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      navigate('/login');
     } catch (err) {
       let errorMsg = err.message || 'Registration failed. Please try again.';
       let fieldError = '';
@@ -72,7 +73,6 @@ export default function SignUp() {
       }
       if (!fieldError) setError(errorMsg);
       else setError('');
-    } finally {
       setLoading(false);
     }
   };
