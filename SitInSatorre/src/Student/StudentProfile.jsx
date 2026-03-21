@@ -67,6 +67,7 @@ export default function StudentProfile() {
   const [isEditing, setEditing] = useState(false)
   const [formData, setFormData] = useState({})
   const [saved, setSaved]       = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   useEffect(() => {
     const u = authService.getUser?.() || {}
@@ -89,11 +90,33 @@ export default function StudentProfile() {
 
   const onChange = (name, val) => setFormData(p => ({ ...p, [name]: val }))
 
-  const handleSave = () => {
-    setUser(formData)
-    setEditing(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+  const handleSave = async () => {
+    try {
+      setSaveError('')
+
+      const response = await authService.updateProfile({
+        idNumber: user.id_number,
+        firstName: formData.first_name,
+        lastName: formData.last_name,
+        middleName: formData.middle_name,
+        address: formData.address,
+      })
+
+      const updatedUser = response?.user
+        ? {
+            ...user,
+            ...response.user,
+          }
+        : formData
+
+      setUser(updatedUser)
+      setFormData(updatedUser)
+      setEditing(false)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    } catch (err) {
+      setSaveError(err.message || 'Failed to save profile changes')
+    }
   }
 
   const handleCancel = () => {
@@ -118,6 +141,8 @@ export default function StudentProfile() {
 
   const displayName = `${user.first_name} ${user.last_name}`.trim()
   const initials    = `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() || 'S'
+  const hasProfileChanges = ['first_name', 'last_name', 'middle_name', 'address']
+    .some((key) => (formData?.[key] ?? '') !== (user?.[key] ?? ''))
 
   return (
     <div className="min-h-[85vh] py-6 px-2">
@@ -137,6 +162,11 @@ export default function StudentProfile() {
                 <IcoCheck e="text-green-500" /> Saved
               </span>
             )}
+            {saveError && (
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-full">
+                {saveError}
+              </span>
+            )}
             {isEditing ? (
               <>
                 <button onClick={handleCancel}
@@ -144,7 +174,12 @@ export default function StudentProfile() {
                   <IcoX /> Cancel
                 </button>
                 <button onClick={handleSave}
-                  className="flex items-center gap-1.5 text-sm font-bold text-white bg-[#3c096c] px-5 py-2 rounded-xl hover:bg-[#5a189a] shadow-md shadow-[#3c096c]/25 transition">
+                  disabled={!hasProfileChanges}
+                  className={`flex items-center gap-1.5 text-sm font-bold px-5 py-2 rounded-xl transition ${
+                    hasProfileChanges
+                      ? 'text-white bg-[#3c096c] hover:bg-[#5a189a] shadow-md shadow-[#3c096c]/25'
+                      : 'text-gray-400 bg-gray-200 cursor-not-allowed'
+                  }`}>
                   <IcoCheck e="text-white" /> Save Changes
                 </button>
               </>

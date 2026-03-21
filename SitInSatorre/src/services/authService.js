@@ -1,10 +1,10 @@
 // Prefer env override; otherwise choose a sensible default
-// - Vite dev (port 5173): call Apache on default http port
+// - Vite dev (port 5173): call Apache on port 8080
 // - Otherwise, same origin
 const API_URL = (() => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-  if (window.location.port === '5173') {
-    return 'http://localhost/SysArchSATORRE/SitInSatorre/server/authenticate.php';
+  if (window.location.port === "5173") {
+    return "http://localhost:8080/SysArchSATORRE/SitInSatorre/server/authenticate.php";
   }
   return `${window.location.origin}/SysArchSATORRE/SitInSatorre/server/authenticate.php`;
 })();
@@ -90,6 +90,29 @@ export const authService = {
       return response;
     } catch (error) {
       throw new Error(error.message || "Login failed");
+    }
+  },
+
+  // =========================
+  // UPDATE PROFILE
+  // =========================
+  updateProfile: async (profileData) => {
+    try {
+      const response = await apiRequest("updateProfile", {
+        idNumber: profileData.idNumber,
+        firstName: profileData.firstName,
+        lastName: profileData.lastName,
+        middleName: profileData.middleName || "",
+        address: profileData.address || "",
+      });
+
+      if (response.user) {
+        localStorage.setItem("user", JSON.stringify(response.user));
+      }
+
+      return response;
+    } catch (error) {
+      throw new Error(error.message || "Profile update failed");
     }
   },
 

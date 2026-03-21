@@ -12,25 +12,24 @@ define('ADMIN_EMAIL', 'admin@sit-in.local');
 define('ADMIN_ROLE', 'admin');
 
 // Get the origin from the request
-$origin = $_SERVER['HTTP_ORIGIN'] ?? 'http://localhost:5173';
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
-// Basic CORS handling
+// CORS headers (needed for both Apache and PHP built-in server)
 $allowed_origins = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
-    'http://localhost',
-    'http://127.0.0.1',
 ];
 
-if (in_array($origin, $allowed_origins, true)) {
-    header("Access-Control-Allow-Origin: {$origin}", true);
-    header('Vary: Origin');
-    header('Access-Control-Allow-Credentials: true', true);
-    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With', true);
-    header('Access-Control-Allow-Methods: POST, OPTIONS', true);
+if ($origin && in_array($origin, $allowed_origins, true)) {
+    header("Access-Control-Allow-Origin: {$origin}");
+} else {
+    header("Access-Control-Allow-Origin: http://localhost:5173");
 }
-
-// Set response content type early
+header('Vary: Origin');
+header('Access-Control-Allow-Credentials: true');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+header('Access-Control-Max-Age: 3600');
 header("Content-Type: application/json; charset=UTF-8");
 
 function debug_log($message) {
@@ -88,26 +87,6 @@ if (!$db->query($create_table_query)) {
     debug_log("Failed to create table: " . $db->error);
 } else {
     debug_log("Table created or already exists");
-}
-
-// Ensure all required columns exist (for existing tables)
-$columns_to_add = [
-    'middle_name' => 'VARCHAR(100)',
-    'course' => 'VARCHAR(50)',
-    'year_level' => 'INT',
-    'address' => 'VARCHAR(255)',
-];
-
-foreach ($columns_to_add as $column => $type) {
-    $check_column = $db->query("SELECT * FROM information_schema.COLUMNS WHERE TABLE_NAME = 'students' AND COLUMN_NAME = '$column' AND TABLE_SCHEMA = 'sitinsatorre'");
-    if ($check_column && $check_column->num_rows === 0) {
-        $alter_query = "ALTER TABLE students ADD COLUMN $column $type";
-        if (!$db->query($alter_query)) {
-            debug_log("Failed to add column $column: " . $db->error);
-        } else {
-            debug_log("Column $column added successfully");
-        }
-    }
 }
 
 // Get action and request data
@@ -247,6 +226,75 @@ try {
             $response['message'] = 'User not found';
             echo json_encode($response);
         }
+        exit();
+    }
+
+    // UPDATE PROFILE ACTION
+    elseif ($action === 'updateProfile' && $request_method === 'POST') {
+        debug_log("Update profile action triggered");
+        debug_log("Input data: " . json_encode($input));
+
+        if (!isset($input['idNumber'])) {
+            http_response_code(400);
+            $response['message'] = 'ID number is required';
+            echo json_encode($response);
+            exit();
+        }
+
+        $id_number = $db->real_escape_string($input['idNumber']);
+        $first_name = $db->real_escape_string(trim($input['firstName'] ?? ''));
+        $last_name = $db->real_escape_string(trim($input['lastName'] ?? ''));
+        $middle_name = $db->real_escape_string(trim($input['middleName'] ?? ''));
+        $address = $db->real_escape_string(trim($input['address'] ?? ''));
+
+        if ($first_name === '' || $last_name === '') {
+            http_response_code(400);
+            $response['message'] = 'First name and last name are required';
+            echo json_encode($response);
+            exit();
+        }
+
+        $update_query = "UPDATE students
+                         SET first_name = '$first_name',
+                             last_name = '$last_name',
+                             middle_name = '$middle_name',
+                             address = '$address'
+                         WHERE id_number = '$id_number'";
+
+        if (!$db->query($update_query)) {
+            debug_log("Profile update failed: " . $db->error);
+            http_response_code(500);
+            $response['message'] = 'Failed to update profile';
+            echo json_encode($response);
+            exit();
+        }
+
+        if ($db->affected_rows < 0) {
+            http_response_code(500);
+            $response['message'] = 'Failed to update profile';
+            echo json_encode($response);
+            exit();
+        }
+
+        $fetch_query = "SELECT id, id_number, first_name, last_name, middle_name, email, course, year_level, address
+                        FROM students WHERE id_number = '$id_number' LIMIT 1";
+        $fetch_result = $db->query($fetch_query);
+
+        if (!$fetch_result || $fetch_result->num_rows === 0) {
+            http_response_code(404);
+            $response['message'] = 'User not found';
+            echo json_encode($response);
+            exit();
+        }
+
+        $student = $fetch_result->fetch_assoc();
+        $student['role'] = 'student';
+
+        http_response_code(200);
+        $response['success'] = true;
+        $response['message'] = 'Profile updated successfully';
+        $response['user'] = $student;
+        echo json_encode($response);
         exit();
     }
 
