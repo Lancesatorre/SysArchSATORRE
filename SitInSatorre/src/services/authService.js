@@ -1,49 +1,113 @@
-// Prefer env override; otherwise choose a sensible default
-// - Vite dev (port 5173): call Apache on port 8080
-// - Otherwise, same origin
-const API_URL = (() => {
-  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+// Prefer explicit env URL. Otherwise, discover a reachable endpoint from
+// common XAMPP/Apache paths and ports to keep the project portable across PCs.
+const API_BASE_URLS = (() => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl) return [envUrl];
+
+  const host = window.location.hostname || "localhost";
+  const customPath = import.meta.env.VITE_API_PATH;
+  const commonPaths = [
+    customPath,
+    "/SysArchSATORRE/SitInSatorre/server/authenticate.php",
+    "/SitInSatorre/server/authenticate.php",
+    "/server/authenticate.php",
+  ].filter(Boolean);
+
+  const urls = [];
+
+  // Same-origin first (useful for deployed builds).
+  commonPaths.forEach((path) => {
+    urls.push(`${window.location.origin}${path}`);
+  });
+
+  // During Vite dev, backend is usually Apache on 80 or 8080.
   if (window.location.port === "5173") {
-    return "http://localhost:8080/SysArchSATORRE/SitInSatorre/server/authenticate.php";
+    commonPaths.forEach((path) => {
+      urls.push(`http://${host}${path}`);
+      urls.push(`http://${host}:8080${path}`);
+      urls.push(`http://localhost${path}`);
+      urls.push(`http://localhost:8080${path}`);
+      urls.push(`http://127.0.0.1${path}`);
+      urls.push(`http://127.0.0.1:8080${path}`);
+    });
   }
-  return `${window.location.origin}/SysArchSATORRE/SitInSatorre/server/authenticate.php`;
+
+  return [...new Set(urls)];
 })();
 
 // Helper function to handle API requests
 const apiRequest = async (action, data) => {
-  try {
-    console.log(`[AUTH] Making ${action} request to:`, `${API_URL}?action=${action}`);
-    console.log(`[AUTH] Request data:`, data);
+  let lastError = null;
 
-    const response = await fetch(`${API_URL}?action=${action}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-      body: JSON.stringify(data),
-    });
+  for (const baseUrl of API_BASE_URLS) {
+    try {
+      console.log(`[AUTH] Making ${action} request to:`, `${baseUrl}?action=${action}`);
+      console.log(`[AUTH] Request data:`, data);
 
-    console.log(`[AUTH] Response status: ${response.status}`);
+      const response = await fetch(`${baseUrl}?action=${action}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
 
-    // Parse response
-    const responseData = await response.json();
-    console.log(`[AUTH] Response data:`, responseData);
+      console.log(`[AUTH] Response status: ${response.status}`);
 
-    // Check if request was successful
-    if (!response.ok) {
-      throw new Error(responseData.message || `HTTP ${response.status}`);
+      // Some wrong candidates (e.g., Vite dev server) return HTML 404.
+      // Parse defensively and keep trying other candidates when appropriate.
+      const contentType = (response.headers.get("content-type") || "").toLowerCase();
+      const rawBody = await response.text();
+
+      let responseData = null;
+      if (rawBody) {
+        try {
+          responseData = JSON.parse(rawBody);
+        } catch {
+          responseData = null;
+        }
+      }
+
+      console.log(`[AUTH] Response data:`, responseData ?? rawBody);
+
+      // If this URL is not the API (common in dev), try next candidate.
+      // Example: Vite may return HTML/JS/PHP source with 200/404.
+      const looksLikeApiJson =
+        contentType.includes("application/json") &&
+        responseData &&
+        typeof responseData === "object";
+
+      if (!looksLikeApiJson) {
+        lastError = new Error(`Not an API endpoint: ${baseUrl}`);
+        continue;
+      }
+
+      if (!response.ok) {
+        throw new Error(responseData?.message || `HTTP ${response.status}`);
+      }
+
+      if (!responseData.success) {
+        throw new Error(responseData?.message || "Request failed");
+      }
+
+      return responseData;
+    } catch (error) {
+      lastError = error;
+      const isNetworkError = error instanceof TypeError;
+      if (!isNetworkError) {
+        console.error(`[AUTH] Error (${action}):`, error);
+        throw error;
+      }
     }
-
-    if (!responseData.success) {
-      throw new Error(responseData.message || "Request failed");
-    }
-
-    return responseData;
-  } catch (error) {
-    console.error(`[AUTH] Error (${action}):`, error);
-    throw error;
   }
+
+  console.error(`[AUTH] Error (${action}):`, lastError);
+  throw new Error(
+    lastError?.message ||
+      `Cannot reach backend API. Checked ${API_BASE_URLS.length} URL(s). ` +
+        `Start Apache/PHP and, if needed, set VITE_API_URL in .env.local.`
+  );
 };
 
 export const authService = {
