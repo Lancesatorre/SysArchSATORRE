@@ -1,6 +1,4 @@
-// Prefer env override; otherwise choose a sensible default
-// - Vite dev (port 5173): call Apache on port 8080
-// - Otherwise, same origin
+// Stable API endpoint to avoid CORS issues from probing invalid paths.
 const API_URL = (() => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   if (window.location.port === "5173") {
@@ -26,17 +24,15 @@ const apiRequest = async (action, data) => {
 
     console.log(`[AUTH] Response status: ${response.status}`);
 
-    // Parse response
     const responseData = await response.json();
     console.log(`[AUTH] Response data:`, responseData);
 
-    // Check if request was successful
     if (!response.ok) {
-      throw new Error(responseData.message || `HTTP ${response.status}`);
+      throw new Error(responseData?.message || `HTTP ${response.status}`);
     }
 
     if (!responseData.success) {
-      throw new Error(responseData.message || "Request failed");
+      throw new Error(responseData?.message || "Request failed");
     }
 
     return responseData;
