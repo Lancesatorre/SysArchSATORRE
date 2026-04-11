@@ -166,7 +166,7 @@ export default function Navbar() {
   return (
     <>
       {logoutLoading && <LoadingOverlay message="Logging out..." />}
-      <nav ref={navRef} className='relative min-h-[5vh] mx-3 sm:mx-6 lg:mx-16 xl:mx-40 bg-[#3c096c] flex justify-between shadow-md shadow-[#ff9100]/20 items-center rounded-3xl px-4 sm:px-8 lg:px-12 mb-5 py-2'>
+      <nav ref={navRef} className='relative min-h-[5vh] mx-3 sm:mx-6 lg:mx-16 xl:mx-40 bg-[#3c096c] flex justify-between shadow-md shadow-[#ff9100]/20 items-center rounded-3xl px-4 sm:px-8 lg:px-12 mb-5'>
         <div className='flex items-center justify-center flex-row gap-3'>
           <img src={ccsLogo} alt="CCS Logo" className='rounded-md h-8 w-8 border border-[#240046]'/>
           <h1 className='font-bold text-lg text-white tracking-wider'>

@@ -148,8 +148,10 @@ export default function SearchStudent() {
   const navigate = useNavigate()
   const [loading, setLoading]   = useState(true)
   const [busy, setBusy]         = useState(false)
+  const [refreshingLive, setRefreshingLive] = useState(false)
   const [keyword, setKeyword]   = useState('')
   const [students, setStudents] = useState([])
+  const [activeSessionIds, setActiveSessionIds] = useState(new Set())
   const [error, setError]       = useState('')
   const [success, setSuccess]   = useState('')
   const [page, setPage]         = useState(1)
@@ -158,17 +160,46 @@ export default function SearchStudent() {
   const [editModal, setEditModal]       = useState(initialEditModal)
   const [deleteTarget, setDeleteTarget] = useState(null)
 
-  const loadStudents = async () => setStudents(await authService.adminListStudents())
+  const loadStudents = async () => {
+    const list = await authService.adminListStudents()
+    setStudents(list)
+  }
+
+  const loadActiveSessions = async () => {
+    const sessions = await authService.adminCurrentSessions()
+    const activeIds = new Set((sessions || []).map((s) => String(s.student_id_number || '')))
+    setActiveSessionIds(activeIds)
+  }
+
+  const loadData = async () => {
+    await Promise.all([loadStudents(), loadActiveSessions()])
+  }
+
+  const refreshLiveDataOnly = async () => {
+    try {
+      setRefreshingLive(true)
+      await loadActiveSessions()
+    } finally {
+      setRefreshingLive(false)
+    }
+  }
 
   useEffect(() => {
     const u = authService.getUser?.() || null
     if (!u || u.role !== 'admin') { navigate('/login'); return }
     ;(async () => {
-      try { await loadStudents() }
+      try { await loadData() }
       catch (err) { setError(err.message || 'Failed to load students') }
       finally { setLoading(false) }
     })()
   }, [navigate])
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      loadActiveSessions().catch(() => {})
+    }, 10000)
+    return () => clearInterval(timer)
+  }, [])
 
   const filteredStudents = useMemo(() => {
     const q = keyword.trim().toLowerCase()
@@ -203,7 +234,7 @@ export default function SearchStudent() {
     if (!deleteTarget) return
     await withBusy(async () => {
       await authService.adminDeleteStudent(deleteTarget.id)
-      await loadStudents()
+      await loadData()
       setDeleteTarget(null)
     }, 'Student deleted successfully.')
   }
@@ -226,19 +257,24 @@ export default function SearchStudent() {
         available_sessions: Number(editModal.available_sessions||0),
       })
       setEditModal(initialEditModal)
-      await loadStudents()
+      await loadData()
     }, 'Student updated successfully.')
   }
 
   const handleInitiateSitIn = async () => {
     if (!sitInModal.student) return
+    if (activeSessionIds.has(String(sitInModal.student.id_number || ''))) {
+      setError('Student already has an active sit-in session.')
+      setSitInModal(initialSitInModal)
+      return
+    }
     if (!sitInModal.room.trim() || !sitInModal.purpose.trim()) {
       setError('Room and purpose are required.'); return
     }
     await withBusy(async () => {
       await authService.adminStartSession(sitInModal.student.id_number, sitInModal.room.trim(), sitInModal.purpose.trim())
       setSitInModal(initialSitInModal)
-      await loadStudents()
+      await loadData()
     }, `Sit-in started for ${sitInModal.student.id_number}.`)
   }
 
@@ -256,14 +292,31 @@ export default function SearchStudent() {
       <div className="max-w-[95rem] mx-auto flex flex-col gap-4">
 
         {/* ── Page header ── */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <div>
             <p className="text-[0.62rem] font-black uppercase tracking-[0.2em] text-[#3c096c]/40 mb-1">SIT IN</p>
             <h1 className="text-4xl font-black text-[#1a0030] tracking-tight">Search Students</h1>
           </div>
-          <span className="text-xs font-bold text-gray-400 bg-white border border-gray-100 px-3 py-1.5 rounded-full shadow-sm">
-            {filteredStudents.length} student{filteredStudents.length !== 1 ? 's' : ''}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-gray-400 bg-white border border-gray-100 px-3 py-1.5 rounded-full shadow-sm">
+              {filteredStudents.length} student{filteredStudents.length !== 1 ? 's' : ''}
+            </span>
+            <button
+              onClick={async () => {
+                setError('')
+                try {
+                  await refreshLiveDataOnly()
+                  setSuccess('Live sit-in data refreshed.')
+                } catch (e) {
+                  setError(e.message || 'Failed to refresh live data')
+                }
+              }}
+              disabled={refreshingLive || busy}
+              className="px-3 py-1.5 rounded-full bg-white border border-gray-100 shadow-sm text-xs font-bold text-gray-500 hover:border-[#3c096c]/30 hover:text-[#3c096c] disabled:opacity-50 transition-colors"
+            >
+              {refreshingLive ? 'Refreshing...' : 'Refresh Live Data'}
+            </button>
+          </div>
         </div>
 
         {/* ── Search bar ── */}
@@ -317,6 +370,9 @@ export default function SearchStudent() {
                     </td>
                   </tr>
                 ) : pagedStudents.map(s => (
+                  (() => {
+                    const hasActiveSession = activeSessionIds.has(String(s.id_number || ''))
+                    return (
                   <tr key={s.id} className="hover:bg-gray-50/60 transition-colors">
                     {/* Student ID */}
                     <td className="px-5 py-3.5 border-b border-gray-50 font-mono font-bold text-sm text-gray-700">
@@ -348,13 +404,21 @@ export default function SearchStudent() {
 
                     {/* Available Sessions */}
                     <td className="px-5 py-3.5 border-b border-gray-50">
-                      <span className={`text-xs font-black px-2.5 py-1 rounded-full border ${
+
+                         {!hasActiveSession && (
+                        <span className={`text-xs font-black px-2.5 py-1 rounded-full border ${
                         Number(s.available_sessions) > 0
                           ? 'bg-green-50 text-green-600 border-green-200'
                           : 'bg-red-50 text-red-500 border-red-200'
                       }`}>
                         {s.available_sessions} left
                       </span>
+                      )}
+                      {hasActiveSession && (
+                        <span className=" text-xs font-black px-2.5 py-1 rounded-full border bg-[#ff9100]/10 text-[#ff9100] border-[#ff9100]">
+                          In session
+                        </span>
+                      )}
                     </td>
 
                     {/* Actions */}
@@ -369,13 +433,15 @@ export default function SearchStudent() {
                           <IcoTrash cls="w-3.5 h-3.5"/> Delete
                         </button>
                         <button onClick={()=>setSitInModal({open:true,student:s,room:'',purpose:''})}
-                          disabled={busy || Number(s.available_sessions) <= 0}
+                          disabled={busy || Number(s.available_sessions) <= 0 || hasActiveSession}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#ff9100] text-white text-xs font-bold hover:bg-orange-400 shadow-sm shadow-[#ff9100]/25 hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0 transition-all">
                           <IcoPlay cls="w-3.5 h-3.5"/> Initiate Sit-in
                         </button>
                       </div>
                     </td>
                   </tr>
+                    )
+                  })()
                 ))}
               </tbody>
             </table>

@@ -200,8 +200,8 @@ export default function Dashboard() {
 
                 <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between">
                   <span className="text-[0.56rem] font-black uppercase tracking-widest text-gray-400">Status</span>
-                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-green-600 bg-green-50 border border-green-200 px-2.5 py-1.5 rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"/>Active
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#ff9100] bg-[#ff9100]/20 border border-[#ff9100] px-2.5 py-1.5 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#ff9100] animate-pulse"/>Active
                   </span>
                 </div>
               </div>

@@ -200,7 +200,7 @@ export default function CurrentSessions() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[0.62rem] font-black uppercase tracking-[0.2em] text-[#3c096c]/40 mb-1">Sit In</p>
-            <h1 className="text-4xl font-black text-[#1a0030] tracking-tight">Current Active Sessions</h1>
+            <h1 className="text-4xl font-black text-[#1a0030] tracking-tight">Current Sessions</h1>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-gray-400 bg-white border border-gray-100 px-3 py-1.5 rounded-full shadow-sm">

@@ -138,8 +138,7 @@ function handle_admin_sit_in_records(mysqli $db, array $input): void {
                      st.first_name, st.last_name, st.course, st.year_level, st.profile_picture
               FROM sit_in_records r
               LEFT JOIN students st ON st.id = r.student_id
-              ORDER BY r.created_at ASC, r.id ASC
-              LIMIT 200";
+              ORDER BY r.id ASC";
     $result = $db->query($query);
 
     if (!$result) {

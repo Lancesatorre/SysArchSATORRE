@@ -37,7 +37,7 @@ export default function StudentHistory() {
   const [success, setSuccess] = useState('')
   const [records, setRecords] = useState([])
   const [studentIdNumber, setStudentIdNumber] = useState('')
-  const [feedbackModal, setFeedbackModal] = useState({ open: false, record: null, feedback: '' })
+  const [feedbackModal, setFeedbackModal] = useState({ open: false, record: null, feedback: '', mode: 'full' })
   const [savingFeedback, setSavingFeedback] = useState(false)
   const [feedbackError, setFeedbackError] = useState('')
   const [page, setPage] = useState(1)
@@ -84,20 +84,21 @@ export default function StudentHistory() {
     setPage((prev) => Math.min(prev, totalPages))
   }, [totalPages])
 
-  const openFeedbackModal = (row) => {
+  const openFeedbackModal = (row, mode = 'full') => {
     if (!row || row.status === 'Active' || Number(row.id || 0) <= 0) return
     setFeedbackError('')
     setFeedbackModal({
       open: true,
       record: row,
       feedback: row.student_feedback || '',
+      mode,
     })
   }
 
   const closeFeedbackModal = () => {
     if (savingFeedback) return
     setFeedbackError('')
-    setFeedbackModal({ open: false, record: null, feedback: '' })
+    setFeedbackModal({ open: false, record: null, feedback: '', mode: 'full' })
   }
 
   const handleSaveFeedback = async () => {
@@ -126,7 +127,7 @@ export default function StudentHistory() {
           : row
       )))
 
-      setFeedbackModal({ open: false, record: null, feedback: '' })
+      setFeedbackModal({ open: false, record: null, feedback: '', mode: 'full' })
       setSuccess('Feedback saved successfully.')
     } catch (err) {
       setFeedbackError(err?.message || 'Failed to save feedback')
@@ -206,8 +207,32 @@ export default function StudentHistory() {
                             {row.status || 'Completed'}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600 max-w-80 truncate">{row.admin_feedback || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600 max-w-80 truncate">{row.student_feedback || '—'}</td>
+                        <td className="px-4 py-3 text-sm">
+                          {row.status === 'Active' ? (
+                            <span className="text-xs font-semibold text-gray-400">—</span>
+                          ) : (
+                            <button
+                              onClick={() => openFeedbackModal(row, 'admin')}
+                              className="text-xs font-bold px-3 py-1.5 rounded-lg border border-[#3c096c]/20 text-[#3c096c] hover:bg-[#3c096c]/5 transition-colors"
+                            >
+                              View
+                            </button>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          {row.status === 'Active' ? (
+                            <span className="text-xs font-semibold text-gray-400">—</span>
+                          ) : !hasFeedback(row) ? (
+                            <span className="text-xs font-semibold text-gray-400">--</span>
+                          ) : (
+                            <button
+                              onClick={() => openFeedbackModal(row)}
+                              className="text-xs font-bold px-3 py-1.5 rounded-lg border border-[#3c096c]/20 text-[#3c096c] hover:bg-[#3c096c]/5 transition-colors"
+                            >
+                              View
+                            </button>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-sm text-gray-600">{formatDateTime(row.started_at)}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{row.status === 'Active' ? 'In Progress' : formatDateTime(row.ended_at)}</td>
                         <td className="px-4 py-3 text-sm font-bold text-[#3c096c]">{formatDuration(row.duration_minutes)}</td>
@@ -246,17 +271,27 @@ export default function StudentHistory() {
                         {row.status || 'Completed'}
                       </span>
                     </div>
-                    <p className="text-[0.72rem] text-gray-500 mt-2">Admin Feedback: {row.admin_feedback || '—'}</p>
-                    <p className="text-[0.72rem] text-gray-500 mt-1">Your Feedback: {row.student_feedback || '—'}</p>
                     <p className="text-[0.7rem] text-gray-400 mt-2">Start: {formatDateTime(row.started_at)}</p>
                     <p className="text-[0.7rem] text-gray-400">End: {row.status === 'Active' ? 'In Progress' : formatDateTime(row.ended_at)}</p>
-                    {row.status !== 'Active' && !hasFeedback(row) && (
-                      <button
-                        onClick={() => openFeedbackModal(row)}
-                        className="mt-2 text-xs font-bold px-3 py-1.5 rounded-lg border border-[#3c096c]/20 text-[#3c096c] hover:bg-[#3c096c]/5 transition-colors"
-                      >
-                        Add Feedback
-                      </button>
+                    {row.status !== 'Active' && (
+                      hasFeedback(row) ? (
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className="text-xs font-semibold text-[#ff9100]">Submitted</span>
+                          <button
+                            onClick={() => openFeedbackModal(row)}
+                            className="text-xs font-bold px-3 py-1.5 rounded-lg border border-[#3c096c]/20 text-[#3c096c] hover:bg-[#3c096c]/5 transition-colors"
+                          >
+                            View
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => openFeedbackModal(row)}
+                          className="mt-2 text-xs font-bold px-3 py-1.5 rounded-lg border border-[#3c096c]/20 text-[#3c096c] hover:bg-[#3c096c]/5 transition-colors"
+                        >
+                          Add Feedback
+                        </button>
+                      )
                     )}
                   </div>
                 ))}
@@ -293,21 +328,29 @@ export default function StudentHistory() {
             <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl shadow-[#3c096c]/25 overflow-hidden">
               <div className="h-1 w-full bg-linear-to-r from-[#ff9100] via-violet-400 to-[#3c096c]" />
               <div className="px-6 py-5 border-b border-gray-100">
-                <h3 className="text-lg font-black text-[#1a0030]">Student Feedback</h3>
+                <h3 className="text-lg font-black text-[#1a0030]">Session Feedback</h3>
                 <p className="text-xs text-gray-400 mt-1">
                   Session #{feedbackModal.record?.session_id || feedbackModal.record?.id} · {feedbackModal.record?.room || 'No room'}
                 </p>
               </div>
               <div className="px-6 py-5">
-                <label className="text-[0.62rem] font-black uppercase tracking-[0.14em] text-gray-400">Your feedback</label>
-                {feedbackError && <p className="mt-2 text-xs text-red-500">{feedbackError}</p>}
-                <textarea
-                  value={feedbackModal.feedback}
-                  onChange={(e) => setFeedbackModal(prev => ({ ...prev, feedback: e.target.value }))}
-                  rows={5}
-                  placeholder="Share your session experience..."
-                  className="mt-2 w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-gray-700 focus:outline-none focus:border-[#3c096c] focus:bg-white transition-all resize-none"
-                />
+    
+
+                {feedbackModal.mode !== 'admin' && (
+                  <>
+                    <label className="mt-4 block text-[0.62rem] font-black uppercase tracking-[0.14em] text-gray-400">Your feedback</label>
+                    {feedbackError && <p className="mt-2 text-xs text-red-500">{feedbackError}</p>}
+                    <textarea
+                      value={feedbackModal.feedback}
+                      onChange={(e) => setFeedbackModal(prev => ({ ...prev, feedback: e.target.value }))}
+                      rows={5}
+                      placeholder="Share your session experience..."
+                      readOnly={hasFeedback(feedbackModal.record)}
+                      className="mt-2 w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-gray-700 focus:outline-none focus:border-[#3c096c] focus:bg-white transition-all resize-none"
+                    />
+                  </>
+                )}
+
               </div>
               <div className="px-6 pb-5 flex justify-end gap-2">
                 <button
@@ -315,15 +358,17 @@ export default function StudentHistory() {
                   disabled={savingFeedback}
                   className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-bold text-gray-500 hover:bg-gray-50 disabled:opacity-50"
                 >
-                  Cancel
+                  {feedbackModal.mode === 'admin' || hasFeedback(feedbackModal.record) ? 'Close' : 'Cancel'}
                 </button>
-                <button
-                  onClick={handleSaveFeedback}
-                  disabled={savingFeedback}
-                  className="px-4 py-2 rounded-xl bg-[#3c096c] text-white text-sm font-bold hover:bg-[#5a189a] disabled:opacity-50"
-                >
-                  {savingFeedback ? 'Saving...' : 'Save Feedback'}
-                </button>
+                {feedbackModal.mode !== 'admin' && !hasFeedback(feedbackModal.record) && (
+                  <button
+                    onClick={handleSaveFeedback}
+                    disabled={savingFeedback}
+                    className="px-4 py-2 rounded-xl bg-[#3c096c] text-white text-sm font-bold hover:bg-[#5a189a] disabled:opacity-50"
+                  >
+                    {savingFeedback ? 'Saving...' : 'Save Feedback'}
+                  </button>
+                )}
               </div>
             </div>
           </div>

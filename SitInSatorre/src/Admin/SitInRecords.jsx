@@ -173,7 +173,7 @@ export default function SitInRecords() {
                     {/* Record ID */}
                     <td className="px-5 py-3.5 border-b border-gray-50">
                       <span className="text-xs font-black text-[#3c096c] bg-[#3c096c]/08 border border-[#3c096c]/15 px-2.5 py-1 rounded-full">
-                        {idx + 1}
+                        {(page - 1) * PAGE_SIZE + idx + 1}
                       </span>
                     </td>
 

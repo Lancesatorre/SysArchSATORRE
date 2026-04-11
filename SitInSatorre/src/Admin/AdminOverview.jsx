@@ -33,10 +33,18 @@ export default function AdminOverview() {
     if (!u || u.role !== 'admin') { navigate('/login'); return }
     const load = async () => {
       try {
-        const [sessions, records] = await Promise.all([
-          authService.adminCurrentSessions?.() || [],
-          authService.adminSitInRecords?.()    || [],
+        const [sessionsRes, recordsRes] = await Promise.allSettled([
+          authService.adminCurrentSessions?.() || Promise.resolve([]),
+          authService.adminSitInRecords?.() || Promise.resolve([]),
         ])
+
+        const sessions = sessionsRes.status === 'fulfilled' && Array.isArray(sessionsRes.value)
+          ? sessionsRes.value
+          : []
+        const records = recordsRes.status === 'fulfilled' && Array.isArray(recordsRes.value)
+          ? recordsRes.value
+          : []
+
         setStats({ active: sessions.length, records: records.length })
       } catch (_) {}
       finally { setLoading(false) }

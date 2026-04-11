@@ -55,6 +55,7 @@ $routes = [
     'adminCurrentSessions' => 'handle_admin_current_sessions',
     'adminEndSession' => 'handle_admin_end_session',
     'adminSitInRecords' => 'handle_admin_sit_in_records',
+    'adminArchivedRecordsCount' => 'handle_admin_archived_records_count',
     'adminCreateAnnouncement' => 'handle_admin_create_announcement',
     'adminAnnouncementRecords' => 'handle_admin_announcement_records',
     'adminUpdateAnnouncement' => 'handle_admin_update_announcement',
