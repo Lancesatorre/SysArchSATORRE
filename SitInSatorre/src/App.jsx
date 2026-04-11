@@ -111,6 +111,14 @@ function App() {
                 </RequireAuth>
               }
             />
+            <Route
+              path="/student/history"
+              element={
+                <RequireAuth role="student">
+                  <StudentHistory />
+                </RequireAuth>
+              }
+            />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
