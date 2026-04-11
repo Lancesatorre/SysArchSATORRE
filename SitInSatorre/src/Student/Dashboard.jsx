@@ -21,14 +21,12 @@ const IcoBell   = ({ cls='w-4 h-4 text-white' }) => <Ico cls={cls} d="M15 17h5l-
 const IcoShield = ({ cls='w-4 h-4 text-white' }) => <Ico cls={cls} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
 const IcoUser   = ({ cls='w-4 h-4' }) => <Ico cls={cls} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
 
-const ANNOUNCEMENTS = [
-  { id:1, author:'CCS Admin', tag:'General', date:'2025-Feb-11', posted:'2024-May-08',
-    message:'Important Announcement! We are excited to announce the launch of our new website. Explore our latest products and services now!' },
-  { id:2, author:'Department Head', tag:'Academic', date:'2025-Feb-18', posted:'2025-Feb-18',
-    message:'Reminder: All laboratory sessions must be completed by the end of this semester. Make sure to schedule your remaining sit-in hours with your instructors.' },
-  { id:3, author:'IT Support', tag:'System', date:'2025-Feb-25', posted:'2025-Feb-25',
-    message:'System Maintenance Notice: The sit-in portal will undergo scheduled maintenance on March 2nd from 2:00 PM to 4:00 PM. Please plan accordingly.' },
-]
+const formatAnnouncementDate = (value) => {
+  if (!value) return '—'
+  const date = new Date(String(value).replace(' ', 'T'))
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+}
 
 const RULES = [
   { num:null, text:'To avoid embarrassment and maintain camaraderie with your friends and superiors at our laboratories, please observe the following:' },
@@ -46,23 +44,55 @@ const TAG_COLORS = {
 export default function Dashboard() {
   const [user, setUser]       = useState(null)
   const [loading, setLoading] = useState(true)
+  const [announcements, setAnnouncements] = useState([])
 
   useEffect(() => {
-    const u = authService.getUser?.() || {}
-    const photo = u.photo || u.profile_picture || null
-    setUser({
-      first_name: u.first_name || 'Student',
-      last_name:  u.last_name  || '',
-      course:     u.course     || 'BSIT',
-      year_level: u.year_level || u.course_level || 4,
-      email:      u.email      || '',
-      address:    u.address    || '',
-      session:    u.session    || 26,
-      id_number:  u.id_number  || '',
-      role:       u.role       || 'student',
-      photo,
-    })
-    setLoading(false)
+    const loadDashboard = async () => {
+      const u = authService.getUser?.() || {}
+      const photo = u.photo || u.profile_picture || null
+      setUser({
+        first_name: u.first_name || 'Student',
+        last_name:  u.last_name  || '',
+        course:     u.course     || 'BSIT',
+        year_level: u.year_level || u.course_level || 4,
+        email:      u.email      || '',
+        address:    u.address    || '',
+        session:    Number(u.available_sessions ?? u.session ?? 0),
+        active_session: null,
+        id_number:  u.id_number  || '',
+        role:       u.role       || 'student',
+        photo,
+      })
+
+      try {
+        if (u.id_number) {
+          const [notificationsRes, sessionRes] = await Promise.allSettled([
+            authService.fetchNotifications(u.id_number),
+            authService.fetchStudentCurrentSession(u.id_number),
+          ])
+
+          setAnnouncements(
+            notificationsRes.status === 'fulfilled' ? notificationsRes.value : []
+          )
+
+          if (sessionRes.status === 'fulfilled') {
+            setUser(prev => ({
+              ...prev,
+              session: Number(sessionRes.value?.available_sessions ?? prev?.session ?? 0),
+              active_session: sessionRes.value?.active_session || null,
+            }))
+          }
+        } else {
+          setAnnouncements([])
+        }
+      } catch (_) {
+        setAnnouncements([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadDashboard()
   }, [])
 
   if (loading) return (
@@ -80,8 +110,8 @@ export default function Dashboard() {
   const initials    = `${user.first_name?.[0]||''}${user.last_name?.[0]||''}`.toUpperCase() || 'S'
 
   return (
-    <div className="py-6 px-2 min-h-[85vh] mt-10">
-      <div className="max-w-[95rem] mx-auto flex flex-col gap-17">
+    <div className="pt-2 sm:pt-3 pb-4 sm:pb-6 px-1 sm:px-2 min-h-[calc(100vh-7rem)] flex">
+      <div className="max-w-[95rem] mx-auto w-full flex flex-col gap-6 sm:gap-8 lg:gap-10 flex-1">
 
         {/* ── GREETING BANNER ── */}
         <div className="bg-[#3c096c] rounded-2xl overflow-hidden shadow-xl shadow-[#3c096c]/25 relative">
@@ -90,10 +120,10 @@ export default function Dashboard() {
           <div className="absolute -bottom-10 left-1/2 w-80 h-40 rounded-full bg-violet-500/08 blur-3xl pointer-events-none"/>
           <div className="h-1.5 w-full bg-gradient-to-r from-[#ff9100] via-violet-400 to-[#3c096c]"/>
 
-          <div className="relative px-8 py-7 flex items-center justify-between gap-8">
+          <div className="relative px-4 sm:px-6 lg:px-8 py-5 sm:py-7 flex flex-col lg:flex-row lg:items-center justify-between gap-6 lg:gap-8">
 
             {/* Left: big photo + identity */}
-            <div className="flex items-center gap-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
               {/* ── BIG avatar ── */}
               <div className="relative flex-shrink-0">
                 <div className="w-24 h-24 rounded-2xl overflow-hidden bg-[#ff9100] flex items-center justify-center shadow-2xl shadow-[#ff9100]/40 ring-[3px] ring-white/15">
@@ -115,40 +145,28 @@ export default function Dashboard() {
               {/* Name + meta */}
               <div>
                 <p className="text-purple-300/80 text-[0.62rem] font-bold uppercase tracking-[0.22em] mb-2">Welcome back</p>
-                <h1 className="text-3xl font-black text-white tracking-tight leading-none">{displayName}</h1>
+                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-none">{displayName}</h1>
                 <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-                  <span className="text-[0.6rem] font-black uppercase tracking-widest bg-white/10 border border-white/15 text-white/65 px-2.5 py-1 rounded-full capitalize">{user.role}</span>
+                  <span className="text-[0.6rem] font-black uppercase tracking-widest bg-white/10 border border-white/15 text-white/65 px-2.5 py-1 rounded-full">{user.role}</span>
                   <span className="text-[0.62rem] font-mono text-white/35 tracking-widest">{user.id_number}</span>
                 </div>
               </div>
             </div>
 
             {/* Right: stats + session */}
-            <div className="flex items-center gap-3">
+            <div className="w-full lg:w-auto flex flex-wrap items-center gap-3">
                  {/* Session badge */}
-              <div className="flex items-center gap-2.5 bg-white/10 border border-white/15 rounded-full px-5 py-2.5">
+              <div className="flex items-center gap-2.5 bg-white/10 border border-white/15 rounded-full px-4 sm:px-5 py-2.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#ff9100] animate-pulse"/>
-                <span className="text-sm font-semibold text-white/80">Session #{user.session}</span>
+                <span className="text-sm font-semibold text-white/80">Available Sessions: {user.session}</span>
               </div>
-              {/* Course + Year */}
-              <div className="hidden md:flex items-center gap-2">
-                <div className="bg-white/08 border border-white/10 rounded-xl px-5 py-3 text-center min-w-[72px]">
-                  <p className="text-[#ff9100] font-black text-xl leading-none">{user.course}</p>
-                  <p className="text-white/35 text-[0.55rem] uppercase tracking-widest mt-1.5">Course</p>
-                </div>
-                <div className="bg-white/08 border border-white/10 rounded-xl px-5 py-3 text-center min-w-[60px]">
-                  <p className="text-white font-black text-xl leading-none">{user.year_level}</p>
-                  <p className="text-white/35 text-[0.55rem] uppercase tracking-widest mt-1.5">Year</p>
-                </div>
-              </div>
-
-           
+          
             </div>
           </div>
         </div>
 
         {/* ── MAIN GRID ── */}
-        <div className="grid grid-cols-12 gap-4 items-stretch">
+        <div className="grid grid-cols-12 gap-4 items-stretch flex-1">
 
           {/* ── LEFT ── */}
           <div className="col-span-12 lg:col-span-3 flex flex-col gap-4">
@@ -219,13 +237,20 @@ export default function Dashboard() {
                 <h2 className="font-black text-[#1a0030] text-xl tracking-tight">Announcements</h2>
               </div>
               <span className="text-xs font-black uppercase tracking-widest bg-[#ff9100] text-white px-4 py-2 rounded-full shadow-sm shadow-[#ff9100]/30">
-                {ANNOUNCEMENTS.length} New
+                {announcements.length} New
               </span>
             </div>
 
-            <div className="flex flex-col gap-3 flex-1">
-              {ANNOUNCEMENTS.map(ann => (
-                <div key={ann.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 flex flex-1">
+            <div
+              className={`flex flex-col gap-3 ${announcements.length > 3 ? 'overflow-y-auto pr-1 pb-1' : ''}`}
+              style={announcements.length > 3 ? { maxHeight: '34.5rem' } : undefined}
+            >
+              {announcements.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                  <p className="text-sm text-gray-400 font-medium">No announcements yet.</p>
+                </div>
+              ) : announcements.map(ann => (
+                <div key={ann.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 flex min-h-43.5">
                   <div className="w-1 bg-gradient-to-b from-[#3c096c] to-[#ff9100] flex-shrink-0"/>
                   <div className="flex-1 min-w-0 flex flex-col">
                     <div className="flex items-center justify-between px-5 py-3 border-b border-gray-50 flex-shrink-0">
@@ -234,8 +259,7 @@ export default function Dashboard() {
                           <span className="text-white text-[0.5rem] font-black">CCS</span>
                         </div>
                         <div>
-                          <p className="text-sm font-bold text-[#1a0030]">{ann.author}</p>
-                          <p className="text-[0.6rem] text-gray-400">{ann.date}</p>
+                          <p className="text-sm font-bold text-[#1a0030]">CCS ADMIN</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
@@ -243,11 +267,12 @@ export default function Dashboard() {
                           {ann.tag}
                         </span>
                         <span className="text-[0.6rem] font-semibold text-gray-400 bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full hidden sm:block">
-                          {ann.posted}
+                          {formatAnnouncementDate(ann.created_at)}
                         </span>
                       </div>
                     </div>
-                    <div className="px-5 py-4 flex-1 flex items-center">
+                    <div className="px-5 pt-4 pb-13">
+                      <p className="text-sm font-bold text-[#1a0030] mb-1">{ann.title || 'Announcement'}</p>
                       <p className="text-sm text-gray-600 leading-relaxed">{ann.message}</p>
                     </div>
                   </div>

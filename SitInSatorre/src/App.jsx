@@ -5,10 +5,13 @@ import Landing from "./Pages/Landing";
 import SignUp from "./Pages/SignUp";
 import Dashboard from "./Student/Dashboard";
 import StudentProfile from "./Student/StudentProfile";
+import StudentHistory from "./Student/StudentHistory";
 import AdminOverview from "./Admin/AdminOverview";
 import SearchStudent from "./Admin/SearchStudent";
 import CurrentSessions from "./Admin/CurrentSessions";
 import SitInRecords from "./Admin/SitInRecords";
+import CreateAnnouncement from "./Admin/CreateAnnouncement";
+import AnnouncementRecords from "./Admin/AnnouncementRecords";
 
 
 function App() {
@@ -23,8 +26,11 @@ function App() {
             <Route path="/admin/search-student" element={<SearchStudent />} />
             <Route path="/admin/current-sessions" element={<CurrentSessions />} />
             <Route path="/admin/sit-in-records" element={<SitInRecords />} />
+            <Route path="/admin/create-announcement" element={<CreateAnnouncement />} />
+            <Route path="/admin/announcement-records" element={<AnnouncementRecords />} />
            <Route path="/student/dashboard" element={<Dashboard />} />
            <Route path="/student/profile" element={<StudentProfile />} />
+           <Route path="/student/history" element={<StudentHistory />} />
         </Route>
       </Routes>
     </Router>

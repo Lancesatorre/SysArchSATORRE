@@ -45,33 +45,33 @@ export default function AdminOverview() {
   }, [navigate])
 
   const LABS = [
-    { id:'524', floor:'2F', status:'open' },
-    { id:'526', floor:'2F', status:'busy' },
-    { id:'528', floor:'2F', status:'open' },
-    { id:'530', floor:'3F', status:'open' },
-    { id:'532', floor:'3F', status:'busy' },
-    { id:'534', floor:'3F', status:'closed' },
-    { id:'536', floor:'4F', status:'open' },
-    { id:'538', floor:'4F', status:'open' },
+    { id:'524', floor:'5F', status:'open' },
+    { id:'526', floor:'5F', status:'busy' },
+    { id:'528', floor:'5F', status:'open' },
+    { id:'530', floor:'5F', status:'open' },
+    { id:'532', floor:'5F', status:'busy' },
+    { id:'534', floor:'5F', status:'closed' },
+    { id:'536', floor:'5F', status:'open' },
+    { id:'538', floor:'5F', status:'open' },
   ]
 
   return (
-    <div className="py-6 px-2 min-h-[90vh]">
-      <div className="max-w-[95rem] mx-auto flex flex-col gap-5">
+    <div className="pt-2 sm:pt-3 pb-4 sm:pb-6 px-1 sm:px-2 min-h-[calc(100vh-7rem)] flex">
+      <div className="max-w-380 mx-auto w-full flex flex-col gap-6 flex-1">
 
         {/* ── HEADER BANNER ── */}
         <div className="bg-[#3c096c] rounded-2xl overflow-hidden shadow-xl shadow-[#3c096c]/20 relative">
           <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage:'repeating-linear-gradient(45deg,#fff 0,#fff 1px,transparent 0,transparent 50%)', backgroundSize:'12px 12px' }}/>
           <div className="absolute -top-16 right-32 w-64 h-64 rounded-full bg-[#ff9100]/10 blur-3xl pointer-events-none"/>
-          <div className="h-1.5 w-full bg-gradient-to-r from-[#ff9100] via-violet-400 to-[#3c096c]"/>
-          <div className="relative px-8 py-7 flex items-center justify-between gap-6 flex-wrap">
+          <div className="h-1.5 w-full bg-linear-to-r from-[#ff9100] via-violet-400 to-[#3c096c]"/>
+          <div className="relative px-4 sm:px-6 lg:px-8 py-5 sm:py-7 flex items-center justify-between gap-6 flex-wrap">
             <div className="flex items-center gap-5">
               <div>
                 <div className="flex items-center gap-2 mb-1.5">
                   <IcoShield cls="w-3 h-3 text-[#ff9100]"/>
                   <p className="text-[#ff9100] text-[0.58rem] font-black uppercase tracking-[0.22em]">Administrator</p>
                 </div>
-                <h1 className="text-5xl font-black text-white tracking-tight leading-none">Dashboard</h1>
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-none">Dashboard</h1>
                 <p className="text-white/40 text-xs mt-1.5">Here's a snapshot of the sit-in system.</p>
               </div>
             </div>
@@ -88,7 +88,7 @@ export default function AdminOverview() {
         </div>
 
         {/* ── STAT ROW ── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label:'Active Sessions', value: loading ? '—' : stats.active,  icon:<IcoPlay/>,    accent:true  },
             { label:'Total Records',   value: loading ? '—' : stats.records, icon:<IcoList/>,    orange:true  },
@@ -110,7 +110,7 @@ export default function AdminOverview() {
         </div>
 
         {/* ── MAIN GRID ── */}
-        <div className="grid grid-cols-12 gap-5">
+        <div className="grid grid-cols-12 gap-5 flex-1">
 
           {/* ── LEFT: Quick Actions ── */}
           <div className="col-span-12 lg:col-span-5 flex flex-col gap-4">
@@ -124,11 +124,11 @@ export default function AdminOverview() {
                 { to:'/admin/search-student', icon:<IcoSearch/>,   label:'Search & Manage Students', desc:'Find students and initiate sit-in sessions', primary:true },
                 { to:'/admin/current-sessions', icon:<IcoClock/>,    label:'Current Sessions',          desc:'Monitor active sit-in sessions in real time' },
                 { to:'/admin/sit-in-records', icon:<IcoList/>,     label:'Sit-in Records',            desc:'Browse the complete session history' },
-                { to:'/admin/sit-in', icon:<IcoActivity/>, label:'Reports & Analytics',       desc:'View usage trends and session statistics' },
+                { to:'/admin/create-announcement', icon:<IcoActivity/>, label:'Create Announcement',  desc:'Post notifications for student accounts' },
               ].map(({ to, icon, label, desc, primary }, i, arr) => (
                 <Link key={label} to={to}
                   className={`group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-gray-50 ${i < arr.length-1 ? 'border-b border-gray-50' : ''}`}>
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                     primary ? 'bg-[#3c096c]' : 'bg-gray-100 group-hover:bg-[#3c096c]/08'
                   }`}>
                     {React.cloneElement(icon, { cls: `w-4 h-4 ${primary ? 'text-white' : 'text-gray-500 group-hover:text-[#3c096c]'}` })}
@@ -141,6 +141,7 @@ export default function AdminOverview() {
                 </Link>
               ))}
             </div>
+
           </div>
 
           {/* ── RIGHT ── */}
@@ -151,7 +152,7 @@ export default function AdminOverview() {
             </div>
 
             {/* Mini stat cards */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <p className="text-[0.6rem] font-black uppercase tracking-[0.14em] text-gray-400">Live Sessions</p>
@@ -160,14 +161,14 @@ export default function AdminOverview() {
                   </span>
                 </div>
                 <p className="text-4xl font-black text-[#3c096c] leading-none">{loading ? '—' : stats.active}</p>
-                <Link to="/admin/sit-in" className="text-xs font-bold text-gray-400 hover:text-[#3c096c] transition-colors flex items-center gap-1">
+                <Link to="/admin/current-sessions" className="text-xs font-bold text-gray-400 hover:text-[#3c096c] transition-colors flex items-center gap-1">
                   View sessions <IcoChevron cls="w-3 h-3"/>
                 </Link>
               </div>
               <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5 flex flex-col gap-3">
                 <p className="text-[0.6rem] font-black uppercase tracking-[0.14em] text-gray-400">Archived Records</p>
                 <p className="text-4xl font-black text-[#ff9100] leading-none">{loading ? '—' : stats.records}</p>
-                <Link to="/admin/sit-in" className="text-xs font-bold text-gray-400 hover:text-[#3c096c] transition-colors flex items-center gap-1">
+                <Link to="/admin/sit-in-records" className="text-xs font-bold text-gray-400 hover:text-[#3c096c] transition-colors flex items-center gap-1">
                   View records <IcoChevron cls="w-3 h-3"/>
                 </Link>
               </div>
@@ -185,7 +186,7 @@ export default function AdminOverview() {
                 <span className="text-[0.58rem] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">8 Labs</span>
               </div>
 
-              <div className="p-4 grid grid-cols-4 gap-2">
+              <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                 {LABS.map(lab => (
                   <div key={lab.id} className={`rounded-xl px-3 py-2.5 flex flex-col items-center gap-1.5 border cursor-default hover:scale-[1.03] transition-transform ${
                     lab.status === 'open'   ? 'bg-gray-50 border-gray-100' :

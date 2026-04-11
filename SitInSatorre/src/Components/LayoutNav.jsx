@@ -4,7 +4,7 @@ import { Outlet } from 'react-router-dom'
 
 export default function Layout() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-300 via-gray-100 to-white relative overflow-hidden">
+    <div className="min-h-screen bg-linear-to-br from-gray-300 via-gray-100 to-white relative overflow-hidden">
 
       {/* Top-left purple glow */}
       <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-[#3c096c]/15 blur-3xl pointer-events-none" />
@@ -21,7 +21,7 @@ export default function Layout() {
       {/* Content */}
       <div className="relative z-10 pt-3">
         <Navbar />
-        <main className="px-10">
+        <main className="px-3 sm:px-5 md:px-6 lg:px-8 xl:px-10">
           <Outlet />
         </main>
       </div>

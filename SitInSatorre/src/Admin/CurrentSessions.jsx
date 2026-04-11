@@ -16,6 +16,7 @@ const IcoStop     = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M21 12a9 9 0 11-1
 const IcoUsers    = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M17 20h5v-2a4 4 0 00-4-4H4a4 4 0 00-4 4v2h5M12 12a4 4 0 100-8 4 4 0 000 8z" />
 const IcoX        = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M6 18L18 6M6 6l12 12" />
 const IcoRefresh  = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.5-5.2M20 15a9 9 0 01-14.5 5.2" />
+const PAGE_SIZE = 8
 
 // ── Avatar: profile picture with initials fallback ─────
 function Avatar({ student, size = 'md' }) {
@@ -81,6 +82,18 @@ function EndSessionModal({ session, onConfirm, onClose, busy }) {
               </p>
             </div>
           </div>
+
+          <div className="w-full flex flex-col gap-1.5 text-left">
+            <label className="text-[0.6rem] font-black uppercase tracking-[0.14em] text-gray-400">Feedback Notes</label>
+            <textarea
+              value={session.adminFeedback || ''}
+              onChange={(e) => session.onChange?.('adminFeedback', e.target.value)}
+              rows={3}
+              placeholder="Add a short comment for this session..."
+              className="bg-gray-50 border-2 border-gray-100 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-gray-700 focus:outline-none focus:border-[#3c096c] focus:bg-white transition-all resize-none"
+            />
+          </div>
+
           <div className="flex gap-2 w-full">
             <button
               onClick={onClose}
@@ -111,6 +124,7 @@ export default function CurrentSessions() {
   const [error, setError]             = useState('')
   const [success, setSuccess]         = useState('')
   const [endTarget, setEndTarget]     = useState(null)
+  const [page, setPage]               = useState(1)
 
   const filteredSessions = sessions.filter(s => {
     const q = search.trim().toLowerCase()
@@ -123,6 +137,9 @@ export default function CurrentSessions() {
 
     return fullName.includes(q) || studentId.includes(q) || room.includes(q) || purpose.includes(q)
   })
+
+  const totalPages = Math.max(1, Math.ceil(filteredSessions.length / PAGE_SIZE))
+  const pagedSessions = filteredSessions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const load = async () => {
     const list = await authService.adminCurrentSessions()
@@ -139,13 +156,23 @@ export default function CurrentSessions() {
     })()
   }, [navigate])
 
+  useEffect(() => {
+    setPage(1)
+  }, [search])
+
+  useEffect(() => {
+    setPage((prev) => Math.min(prev, totalPages))
+  }, [totalPages])
+
   const handleEndConfirm = async () => {
     if (!endTarget) return
     try {
       setBusy(true)
       setError('')
       setSuccess('')
-      await authService.adminEndSession(endTarget.id)
+      await authService.adminEndSession(endTarget.id, {
+        adminFeedback: endTarget.adminFeedback || '',
+      })
       await load()
       setEndTarget(null)
       setSuccess('Session ended and recorded successfully.')
@@ -166,7 +193,7 @@ export default function CurrentSessions() {
   )
 
   return (
-    <div className="py-6 px-2 min-h-screen">
+    <div className="py-6 px-2 min-h-auto">
       <div className="max-w-[95rem] mx-auto flex flex-col gap-4">
 
         {/* ── Page header ── */}
@@ -220,7 +247,7 @@ export default function CurrentSessions() {
         {/* ── Table ── */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
+            <table className="w-full min-w-225 text-sm">
               <thead>
                 <tr>
                   {['Session ID', 'Student ID', 'Full Name', 'Room', 'Purpose', 'Started At', 'Remaining', 'Actions'].map(h => (
@@ -245,7 +272,7 @@ export default function CurrentSessions() {
                       </div>
                     </td>
                   </tr>
-                ) : filteredSessions.map(s => (
+                ) : pagedSessions.map(s => (
                   <tr key={s.id} className="hover:bg-gray-50/60 transition-colors">
                     {/* Session ID */}
                     <td className="px-5 py-3.5 border-b border-gray-50">
@@ -277,8 +304,14 @@ export default function CurrentSessions() {
                       }
                     </td>
                     {/* Purpose */}
-                    <td className="px-5 py-3.5 border-b border-gray-50 text-xs text-gray-500 max-w-[180px] truncate">
-                      {s.purpose || '—'}
+                    <td className="px-5 py-3.5 border-b border-gray-50">
+                      {s.purpose ? (
+                        <span className="inline-flex items-center text-xs font-bold text-[#5a189a] bg-[#5a189a]/08 border border-[#5a189a]/15 px-2.5 py-1 rounded-full max-w-45 truncate" title={s.purpose}>
+                          {s.purpose}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
                     </td>
                     {/* Started At */}
                     <td className="px-5 py-3.5 border-b border-gray-50 text-xs text-gray-500 whitespace-nowrap">
@@ -297,7 +330,7 @@ export default function CurrentSessions() {
                     {/* Action */}
                     <td className="px-5 py-3.5 border-b border-gray-50">
                       <button
-                        onClick={() => setEndTarget(s)}
+                        onClick={() => setEndTarget({ ...s, adminFeedback: '' })}
                         disabled={busy}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#3c096c] text-white text-xs font-bold hover:bg-[#5a189a] shadow-sm shadow-[#3c096c]/20 hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0 transition-all"
                       >
@@ -310,13 +343,38 @@ export default function CurrentSessions() {
               </tbody>
             </table>
           </div>
+
+          {filteredSessions.length > PAGE_SIZE && (
+            <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between">
+              <p className="text-xs font-semibold text-gray-400">Page {page} of {totalPages}</p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* ── END SESSION CONFIRM ── */}
       {endTarget && (
         <EndSessionModal
-          session={endTarget}
+          session={{
+            ...endTarget,
+            onChange: (field, value) => setEndTarget((prev) => ({ ...prev, [field]: value })),
+          }}
           onConfirm={handleEndConfirm}
           onClose={() => setEndTarget(null)}
           busy={busy}

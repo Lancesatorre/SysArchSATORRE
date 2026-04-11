@@ -17,6 +17,22 @@ const IcoX       = ({ cls='w-4 h-4' }) => <Ico cls={cls} d="M6 18L18 6M6 6l12 12
 const IcoCheck   = ({ cls='w-4 h-4' }) => <Ico cls={cls} d="M5 13l4 4L19 7"/>
 const IcoUser    = ({ cls='w-4 h-4' }) => <Ico cls={cls} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
 const IcoWarning = ({ cls='w-4 h-4' }) => <Ico cls={cls} d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+const IcoLab     = ({ cls='w-4 h-4' }) => <Ico cls={cls} d="M9 3v6l-5 9a2 2 0 001.74 3h12.52A2 2 0 0020 18l-5-9V3M8 3h8"/>
+const IcoBook    = ({ cls='w-4 h-4' }) => <Ico cls={cls} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+const IcoChevron = ({ cls='w-4 h-4' }) => <Ico cls={cls} d="M19 9l-7 7-7-7"/>
+
+const ROOM_OPTIONS = ['524', '526', '528', '530', '544', '542']
+const PURPOSE_OPTIONS = [
+  'Java Programming',
+  'C Programming',
+  'Database Management',
+  'Web Development',
+  'Data Structures and Algorithms',
+  'Software Engineering Project',
+  'Research / Thesis',
+  'Exam Review',
+]
+const PAGE_SIZE = 8
 
 const initialSitInModal = { open: false, student: null, room: '', purpose: '' }
 const initialEditModal  = { open: false, student: null, first_name:'', last_name:'', middle_name:'', course:'', year_level:'', address:'', available_sessions:'' }
@@ -136,6 +152,7 @@ export default function SearchStudent() {
   const [students, setStudents] = useState([])
   const [error, setError]       = useState('')
   const [success, setSuccess]   = useState('')
+  const [page, setPage]         = useState(1)
 
   const [sitInModal, setSitInModal]     = useState(initialSitInModal)
   const [editModal, setEditModal]       = useState(initialEditModal)
@@ -164,6 +181,17 @@ export default function SearchStudent() {
              full.includes(q)
     })
   }, [students, keyword])
+
+  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE))
+  const pagedStudents = filteredStudents.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  useEffect(() => {
+    setPage(1)
+  }, [keyword])
+
+  useEffect(() => {
+    setPage((prev) => Math.min(prev, totalPages))
+  }, [totalPages])
 
   const withBusy = async (fn, msg) => {
     try { setBusy(true); setError(''); setSuccess(''); await fn(); if (msg) setSuccess(msg) }
@@ -224,7 +252,7 @@ export default function SearchStudent() {
   )
 
   return (
-    <div className="py-6 px-2 min-h-screen">
+    <div className="py-6 px-2">
       <div className="max-w-[95rem] mx-auto flex flex-col gap-4">
 
         {/* ── Page header ── */}
@@ -270,7 +298,7 @@ export default function SearchStudent() {
         {/* ── Table ── */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
+            <table className="w-full min-w-225 text-sm">
               <thead>
                 <tr>
                   {['Student ID','Full Name','Course / Year','Available Sessions','Actions'].map(h => (
@@ -288,7 +316,7 @@ export default function SearchStudent() {
                       </div>
                     </td>
                   </tr>
-                ) : filteredStudents.map(s => (
+                ) : pagedStudents.map(s => (
                   <tr key={s.id} className="hover:bg-gray-50/60 transition-colors">
                     {/* Student ID */}
                     <td className="px-5 py-3.5 border-b border-gray-50 font-mono font-bold text-sm text-gray-700">
@@ -352,6 +380,28 @@ export default function SearchStudent() {
               </tbody>
             </table>
           </div>
+
+          {filteredStudents.length > PAGE_SIZE && (
+            <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between">
+              <p className="text-xs font-semibold text-gray-400">Page {page} of {totalPages}</p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -389,21 +439,50 @@ export default function SearchStudent() {
               </span>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[0.6rem] font-black uppercase tracking-[0.14em] text-gray-400">Room</label>
-              <input type="text" value={sitInModal.room}
-                onChange={e=>setSitInModal(p=>({...p,room:e.target.value}))}
-                placeholder="e.g. Lab 524"
-                className="bg-gray-50 border-2 border-gray-100 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-gray-700 focus:outline-none focus:border-[#3c096c] focus:bg-white transition-all"/>
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[0.6rem] font-black uppercase tracking-[0.14em] text-gray-400">Room</label>
+                <div className="relative group">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <IcoLab cls="w-4 h-4 text-[#3c096c]/45 group-focus-within:text-[#3c096c]" />
+                  </span>
+                  <select
+                    value={sitInModal.room}
+                    onChange={e=>setSitInModal(p=>({...p,room:e.target.value}))}
+                    className="w-full appearance-none bg-gray-50 border-2 border-gray-100 rounded-xl pl-10 pr-10 py-2.5 text-sm font-semibold text-gray-700 focus:outline-none focus:border-[#3c096c] focus:bg-white transition-all"
+                  >
+                    <option value="">Select room</option>
+                    {ROOM_OPTIONS.map(room => (
+                      <option key={room} value={room}>Lab {room}</option>
+                    ))}
+                  </select>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <IcoChevron cls="w-4 h-4 text-gray-400" />
+                  </span>
+                </div>
+              </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[0.6rem] font-black uppercase tracking-[0.14em] text-gray-400">Purpose</label>
-              <textarea value={sitInModal.purpose}
-                onChange={e=>setSitInModal(p=>({...p,purpose:e.target.value}))}
-                placeholder="Describe the purpose of this sit-in session..."
-                rows={3}
-                className="bg-gray-50 border-2 border-gray-100 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-gray-700 focus:outline-none focus:border-[#3c096c] focus:bg-white transition-all resize-none"/>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[0.6rem] font-black uppercase tracking-[0.14em] text-gray-400">Purpose</label>
+                <div className="relative group">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <IcoBook cls="w-4 h-4 text-[#3c096c]/45 group-focus-within:text-[#3c096c]" />
+                  </span>
+                  <select
+                    value={sitInModal.purpose}
+                    onChange={e=>setSitInModal(p=>({...p,purpose:e.target.value}))}
+                    className="w-full appearance-none bg-gray-50 border-2 border-gray-100 rounded-xl pl-10 pr-10 py-2.5 text-sm font-semibold text-gray-700 focus:outline-none focus:border-[#3c096c] focus:bg-white transition-all"
+                  >
+                    <option value="">Select purpose</option>
+                    {PURPOSE_OPTIONS.map(item => (
+                      <option key={item} value={item}>{item}</option>
+                    ))}
+                  </select>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <IcoChevron cls="w-4 h-4 text-gray-400" />
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </Modal>

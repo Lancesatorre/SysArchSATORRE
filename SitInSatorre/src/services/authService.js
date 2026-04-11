@@ -229,11 +229,12 @@ export const authService = {
   // =========================
   // ADMIN - END SESSION
   // =========================
-  adminEndSession: async (sessionId) => {
+  adminEndSession: async (sessionId, payload = {}) => {
     try {
       return await apiRequest("adminEndSession", {
         adminId: authService.getAdminId(),
         sessionId,
+        adminFeedback: payload.adminFeedback || '',
       });
     } catch (error) {
       throw new Error(error.message || "Failed to end session");
@@ -255,6 +256,73 @@ export const authService = {
   },
 
   // =========================
+  // ADMIN - CREATE ANNOUNCEMENT
+  // =========================
+  adminCreateAnnouncement: async ({ title, message, tag = "General" }) => {
+    try {
+      return await apiRequest("adminCreateAnnouncement", {
+        adminId: authService.getAdminId(),
+        title,
+        message,
+        tag,
+      });
+    } catch (error) {
+      throw new Error(error.message || "Failed to create announcement");
+    }
+  },
+
+  // =========================
+  // ADMIN - ANNOUNCEMENT RECORDS
+  // =========================
+  adminAnnouncementRecords: async () => {
+    try {
+      const response = await apiRequest("adminAnnouncementRecords", {
+        adminId: authService.getAdminId(),
+      });
+      return response.records || [];
+    } catch (error) {
+      throw new Error(error.message || "Failed to load announcement records");
+    }
+  },
+
+  adminUpdateAnnouncement: async ({ id, title, message, tag = "General" }) => {
+    try {
+      return await apiRequest("adminUpdateAnnouncement", {
+        adminId: authService.getAdminId(),
+        id,
+        title,
+        message,
+        tag,
+      });
+    } catch (error) {
+      throw new Error(error.message || "Failed to update announcement");
+    }
+  },
+
+  adminDeleteAnnouncement: async (id) => {
+    try {
+      return await apiRequest("adminDeleteAnnouncement", {
+        adminId: authService.getAdminId(),
+        id,
+      });
+    } catch (error) {
+      throw new Error(error.message || "Failed to delete announcement");
+    }
+  },
+
+  // =========================
+  // NOTIFICATIONS
+  // =========================
+  fetchNotifications: async (idNumber) => {
+    try {
+      const response = await apiRequest("fetchNotifications", { idNumber });
+      return response.notifications || [];
+    } catch (error) {
+      throw new Error(error.message || "Failed to fetch notifications");
+    }
+  },
+
+  // =========================
   // STUDENT - PROFILE STATS
   // =========================
   fetchStudentProfileStats: async (idNumber) => {
@@ -269,6 +337,45 @@ export const authService = {
       };
     } catch (error) {
       throw new Error(error.message || "Failed to load profile stats");
+    }
+  },
+
+  // =========================
+  // STUDENT - CURRENT SESSION
+  // =========================
+  fetchStudentCurrentSession: async (idNumber) => {
+    try {
+      const response = await apiRequest("studentCurrentSession", { idNumber });
+      return {
+        available_sessions: Number(response.available_sessions || 0),
+        active_session: response.active_session || null,
+      };
+    } catch (error) {
+      throw new Error(error.message || "Failed to load current student session");
+    }
+  },
+
+  // =========================
+  // STUDENT - HISTORY
+  // =========================
+  fetchStudentHistory: async (idNumber) => {
+    try {
+      const response = await apiRequest("studentHistory", { idNumber });
+      return response.records || [];
+    } catch (error) {
+      throw new Error(error.message || "Failed to load student history");
+    }
+  },
+
+  submitStudentFeedback: async ({ idNumber, recordId, feedback }) => {
+    try {
+      return await apiRequest("studentSubmitFeedback", {
+        idNumber,
+        recordId,
+        feedback,
+      });
+    } catch (error) {
+      throw new Error(error.message || "Failed to submit feedback");
     }
   },
 

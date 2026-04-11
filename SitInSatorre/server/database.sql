@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS students (
     INDEX idx_email (email)
 );
 
--- Active sit-in sessions (currently ongoing)
+-- Active sit-in sessions 
 CREATE TABLE IF NOT EXISTS sit_in_sessions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     student_id INT NOT NULL,
@@ -37,20 +37,36 @@ CREATE TABLE IF NOT EXISTS sit_in_sessions (
     CONSTRAINT fk_sit_in_sessions_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
 );
 
--- Permanent sit-in records (historical archive)
+-- Permanent sit-in records
 CREATE TABLE IF NOT EXISTS sit_in_records (
     id INT AUTO_INCREMENT PRIMARY KEY,
     session_id INT NOT NULL,
     student_id INT NOT NULL,
     student_id_number VARCHAR(50) NOT NULL,
+    room VARCHAR(50) DEFAULT NULL,
+    purpose VARCHAR(255) DEFAULT NULL,
     started_at DATETIME NOT NULL,
     ended_at DATETIME NOT NULL,
     duration_minutes INT NOT NULL DEFAULT 0,
+    status VARCHAR(30) NOT NULL DEFAULT 'Completed',
+    admin_feedback TEXT DEFAULT NULL,
+    student_feedback TEXT DEFAULT NULL,
     ended_by VARCHAR(50) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_record_student_id (student_id),
     INDEX idx_record_student_id_number (student_id_number),
     INDEX idx_record_created (created_at)
+);
+
+-- Announcements for student notifications
+CREATE TABLE IF NOT EXISTS announcements (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(150) NOT NULL,
+    message TEXT NOT NULL,
+    tag VARCHAR(30) NOT NULL DEFAULT 'General',
+    created_by VARCHAR(50) NOT NULL DEFAULT 'admin',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_announcement_created (created_at)
 );
 
 -- Add a default test user (optional)

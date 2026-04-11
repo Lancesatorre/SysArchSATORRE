@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authService } from '../services/authService'
 
-// ── Icons ──────────────────────────────────────────────
 const Ico = ({ d, d2, cls = 'w-4 h-4' }) => (
   <svg className={cls} fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" d={d} />
@@ -11,8 +10,9 @@ const Ico = ({ d, d2, cls = 'w-4 h-4' }) => (
 )
 const IcoClipboard = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
 const IcoRefresh   = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.5-5.2M20 15a9 9 0 01-14.5 5.2" />
+const PAGE_SIZE = 8
 
-// ── Avatar: profile picture with initials fallback ─────
+
 function Avatar({ student, size = 'md' }) {
   const [imgError, setImgError] = useState(false)
   const sizeClasses = {
@@ -45,6 +45,7 @@ export default function SitInRecords() {
   const [records, setRecords] = useState([])
   const [search, setSearch]   = useState('')
   const [error, setError]     = useState('')
+  const [page, setPage]       = useState(1)
 
   const filteredRecords = records.filter(r => {
     const q = search.trim().toLowerCase()
@@ -57,6 +58,9 @@ export default function SitInRecords() {
 
     return fullName.includes(q) || studentId.includes(q) || room.includes(q) || purpose.includes(q)
   })
+
+  const totalPages = Math.max(1, Math.ceil(filteredRecords.length / PAGE_SIZE))
+  const pagedRecords = filteredRecords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const load = async () => {
     const list = await authService.adminSitInRecords()
@@ -73,6 +77,14 @@ export default function SitInRecords() {
     })()
   }, [navigate])
 
+  useEffect(() => {
+    setPage(1)
+  }, [search])
+
+  useEffect(() => {
+    setPage((prev) => Math.min(prev, totalPages))
+  }, [totalPages])
+
   if (loading) return (
     <div className="min-h-[70vh] flex items-center justify-center">
       <div className="flex flex-col items-center gap-3">
@@ -83,7 +95,7 @@ export default function SitInRecords() {
   )
 
   return (
-    <div className="py-6 px-2 min-h-screen">
+    <div className="py-6 px-2 min-h-auto">
       <div className="max-w-[95rem] mx-auto flex flex-col gap-4">
 
         {/* ── Page header ── */}
@@ -130,7 +142,7 @@ export default function SitInRecords() {
         {/* ── Table ── */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-sm">
+            <table className="w-full min-w-225 text-sm">
               <thead>
                 <tr>
                   {['Record ID', 'Session ID', 'Student', 'Room', 'Purpose', 'Started', 'Ended', 'Duration', 'Ended By'].map(h => (
@@ -155,7 +167,7 @@ export default function SitInRecords() {
                       </div>
                     </td>
                   </tr>
-                ) : filteredRecords.map((r, idx) => (
+                ) : pagedRecords.map((r, idx) => (
                   <tr key={r.id} className="hover:bg-gray-50/60 transition-colors">
 
                     {/* Record ID */}
@@ -229,6 +241,28 @@ export default function SitInRecords() {
               </tbody>
             </table>
           </div>
+
+          {filteredRecords.length > PAGE_SIZE && (
+            <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between">
+              <p className="text-xs font-semibold text-gray-400">Page {page} of {totalPages}</p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
       </div>
