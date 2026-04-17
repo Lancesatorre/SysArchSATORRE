@@ -20,12 +20,26 @@ const IcoAlert  = ({ cls='w-4 h-4 text-[#ff9100]' }) => <Ico cls={cls} d="M12 9v
 const IcoBell   = ({ cls='w-4 h-4 text-white' }) => <Ico cls={cls} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
 const IcoShield = ({ cls='w-4 h-4 text-white' }) => <Ico cls={cls} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
 const IcoUser   = ({ cls='w-4 h-4' }) => <Ico cls={cls} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+const IcoClose  = ({ cls='w-4 h-4' }) => <Ico cls={cls} d="M6 18L18 6M6 6l12 12"/>
 
 const formatAnnouncementDate = (value) => {
   if (!value) return '—'
   const date = new Date(String(value).replace(' ', 'T'))
   if (Number.isNaN(date.getTime())) return '—'
   return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+}
+
+const formatAnnouncementDateTime = (value) => {
+  if (!value) return '—'
+  const date = new Date(String(value).replace(' ', 'T'))
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 const RULES = [
@@ -45,6 +59,34 @@ export default function Dashboard() {
   const [user, setUser]       = useState(null)
   const [loading, setLoading] = useState(true)
   const [announcements, setAnnouncements] = useState([])
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null)
+
+  const refreshDashboardData = async (idNumber) => {
+    if (!idNumber) return
+
+    const [notificationsRes, sessionRes] = await Promise.allSettled([
+      authService.fetchNotifications(idNumber),
+      authService.fetchStudentCurrentSession(idNumber),
+    ])
+
+    if (notificationsRes.status === 'fulfilled') {
+      const payload = notificationsRes.value
+      const rows = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.notifications)
+          ? payload.notifications
+          : []
+      setAnnouncements(rows)
+    }
+
+    if (sessionRes.status === 'fulfilled') {
+      setUser(prev => ({
+        ...prev,
+        session: Number(sessionRes.value?.available_sessions ?? prev?.session ?? 0),
+        active_session: sessionRes.value?.active_session || null,
+      }))
+    }
+  }
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -66,22 +108,7 @@ export default function Dashboard() {
 
       try {
         if (u.id_number) {
-          const [notificationsRes, sessionRes] = await Promise.allSettled([
-            authService.fetchNotifications(u.id_number),
-            authService.fetchStudentCurrentSession(u.id_number),
-          ])
-
-          setAnnouncements(
-            notificationsRes.status === 'fulfilled' ? notificationsRes.value : []
-          )
-
-          if (sessionRes.status === 'fulfilled') {
-            setUser(prev => ({
-              ...prev,
-              session: Number(sessionRes.value?.available_sessions ?? prev?.session ?? 0),
-              active_session: sessionRes.value?.active_session || null,
-            }))
-          }
+          await refreshDashboardData(u.id_number)
         } else {
           setAnnouncements([])
         }
@@ -94,6 +121,65 @@ export default function Dashboard() {
 
     loadDashboard()
   }, [])
+
+  useEffect(() => {
+    if (!user?.id_number) return undefined
+
+    let cancelled = false
+
+    const refresh = async () => {
+      if (cancelled) return
+      try {
+        await refreshDashboardData(user.id_number)
+      } catch (_) {}
+    }
+
+    const intervalId = setInterval(refresh, 10000)
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refresh()
+      }
+    }
+
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      cancelled = true
+      clearInterval(intervalId)
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [user?.id_number])
+
+  useEffect(() => {
+    if (!selectedAnnouncement) return
+
+    const updated = announcements.find((ann) => String(ann.id) === String(selectedAnnouncement.id))
+    if (updated) {
+      setSelectedAnnouncement(updated)
+    }
+  }, [announcements, selectedAnnouncement?.id])
+
+  useEffect(() => {
+    if (!selectedAnnouncement) return undefined
+
+    const handleEsc = (event) => {
+      if (event.key === 'Escape') {
+        setSelectedAnnouncement(null)
+      }
+    }
+
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.addEventListener('keydown', handleEsc)
+
+    return () => {
+      document.body.style.overflow = originalOverflow
+      document.removeEventListener('keydown', handleEsc)
+    }
+  }, [selectedAnnouncement])
 
   if (loading) return (
     <div className="min-h-[85vh] flex items-center justify-center">
@@ -250,7 +336,12 @@ export default function Dashboard() {
                   <p className="text-sm text-gray-400 font-medium">No announcements yet.</p>
                 </div>
               ) : announcements.map(ann => (
-                <div key={ann.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 flex min-h-43.5">
+                <button
+                  key={ann.id}
+                  type="button"
+                  onClick={() => setSelectedAnnouncement(ann)}
+                  className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 flex min-h-43.5 text-left cursor-pointer"
+                >
                   <div className="w-1 bg-gradient-to-b from-[#3c096c] to-[#ff9100] flex-shrink-0"/>
                   <div className="flex-1 min-w-0 flex flex-col">
                     <div className="flex items-center justify-between px-5 py-3 border-b border-gray-50 flex-shrink-0">
@@ -273,10 +364,11 @@ export default function Dashboard() {
                     </div>
                     <div className="px-5 pt-4 pb-13">
                       <p className="text-sm font-bold text-[#1a0030] mb-1">{ann.title || 'Announcement'}</p>
-                      <p className="text-sm text-gray-600 leading-relaxed">{ann.message}</p>
+                      <p className="text-sm text-gray-600 leading-relaxed line-clamp-3">{ann.message}</p>
+                      <p className="text-[0.65rem] font-bold uppercase tracking-wider text-[#3c096c]/50 mt-3">Click to view full announcement</p>
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -324,6 +416,58 @@ export default function Dashboard() {
 
         </div>
       </div>
+
+      {selectedAnnouncement && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#1a0030]/65 backdrop-blur-[2px] p-4"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setSelectedAnnouncement(null)
+            }
+          }}
+        >
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-2xl bg-white shadow-2xl border border-gray-200 flex flex-col">
+            <div className="h-1.5 w-full bg-linear-to-r from-[#3c096c] to-[#ff9100]" />
+
+            <div className="px-5 sm:px-6 py-4 border-b border-gray-100 flex items-start justify-between gap-4">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-[#3c096c] flex items-center justify-center shrink-0">
+                  <span className="text-white text-[0.55rem] font-black">CCS</span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-black text-[#1a0030] tracking-wide">CCS ADMIN</p>
+                  <p className="text-[0.7rem] font-semibold text-gray-400">{formatAnnouncementDateTime(selectedAnnouncement.created_at)}</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedAnnouncement(null)}
+                className="w-8 h-8 rounded-lg border border-gray-200 text-gray-500 hover:text-[#3c096c] hover:border-[#3c096c]/30 hover:bg-[#3c096c]/5 flex items-center justify-center transition-colors"
+                aria-label="Close announcement"
+              >
+                <IcoClose cls="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="px-5 sm:px-6 py-5 overflow-y-auto">
+              <div className="flex items-center gap-2 mb-3">
+                <span className={`text-[0.58rem] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border ${TAG_COLORS[selectedAnnouncement.tag]||'bg-gray-50 text-gray-500 border-gray-200'}`}>
+                  {selectedAnnouncement.tag || 'General'}
+                </span>
+              </div>
+
+              <h3 className="text-xl sm:text-2xl font-black text-[#1a0030] leading-tight mb-3 wrap-break-word">
+                {selectedAnnouncement.title || 'Announcement'}
+              </h3>
+
+              <p className="text-sm sm:text-base text-gray-700 leading-relaxed whitespace-pre-line wrap-break-word">
+                {selectedAnnouncement.message || 'No details provided.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

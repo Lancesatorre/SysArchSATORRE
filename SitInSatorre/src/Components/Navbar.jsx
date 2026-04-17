@@ -19,6 +19,19 @@ const formatNotificationTime = (dateValue) => {
   return date.toLocaleDateString();
 };
 
+const formatNotificationDateTime = (dateValue) => {
+  if (!dateValue) return '—';
+  const date = new Date(dateValue.replace(' ', 'T'));
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 // Returns tag icon + color config based on notification tag
 const getNotifStyle = (tag = '') => {
   const t = tag.toLowerCase();
@@ -78,7 +91,9 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState(null);
   const [sitInOpen, setSitInOpen] = useState(false);
   const [announcementOpen, setAnnouncementOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -101,18 +116,132 @@ export default function Navbar() {
     }
   }, []);
 
-  const loadNotifications = async (activeUser = user) => {
+  const loadNotifications = async (activeUser = user, showLoader = true) => {
     if (!activeUser?.id_number) return;
-    setNotificationsLoading(true);
+    if (showLoader) {
+      setNotificationsLoading(true);
+    }
     try {
-      const rows = await authService.fetchNotifications(activeUser.id_number);
-      setNotifications(rows);
+      const response = await authService.fetchNotifications(activeUser.id_number);
+      setNotifications(response.notifications || []);
+      setUnreadCount(Number(response.unreadCount || 0));
     } catch (_) {
-      setNotifications([]);
+      if (showLoader) {
+        setNotifications([]);
+        setUnreadCount(0);
+      }
     } finally {
-      setNotificationsLoading(false);
+      if (showLoader) {
+        setNotificationsLoading(false);
+      }
     }
   };
+
+  const markNotificationAsRead = async (notification) => {
+    if (!user?.id_number || !notification?.id) return;
+
+    const alreadyRead = Number(notification.is_read || 0) === 1;
+    if (alreadyRead) return;
+
+    setNotifications(prev => prev.map((item) => (
+      String(item.id) === String(notification.id)
+        ? { ...item, is_read: 1 }
+        : item
+    )));
+    setUnreadCount((prev) => Math.max(0, Number(prev || 0) - 1));
+
+    try {
+      await authService.markNotificationRead({
+        idNumber: user.id_number,
+        notificationId: notification.id,
+      });
+    } catch (_) {
+      setNotifications(prev => prev.map((item) => (
+        String(item.id) === String(notification.id)
+          ? { ...item, is_read: 0 }
+          : item
+      )));
+      setUnreadCount((prev) => Number(prev || 0) + 1);
+    }
+  };
+
+  const handleOpenNotification = (item) => {
+    setSelectedNotification(item);
+    setNotificationOpen(false);
+    markNotificationAsRead(item);
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    if (!user?.id_number) return;
+
+    const snapshot = notifications;
+    const snapshotUnread = unreadCount;
+
+    setNotifications((prev) => prev.map((item) => ({ ...item, is_read: 1 })));
+    setUnreadCount(0);
+
+    try {
+      await authService.markAllNotificationsRead(user.id_number);
+    } catch (_) {
+      setNotifications(snapshot);
+      setUnreadCount(snapshotUnread);
+    }
+  };
+
+  useEffect(() => {
+    if (!isLoggedIn || !user?.id_number || user?.role === 'admin') return undefined;
+
+    let cancelled = false;
+    const refreshNotifications = async () => {
+      if (cancelled) return;
+      await loadNotifications(user, false);
+    };
+
+    const intervalId = setInterval(refreshNotifications, 10000);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshNotifications();
+      }
+    };
+
+    window.addEventListener('focus', refreshNotifications);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+      window.removeEventListener('focus', refreshNotifications);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isLoggedIn, user?.id_number, user?.role]);
+
+  useEffect(() => {
+    if (!selectedNotification) return;
+
+    const updated = notifications.find((item) => String(item.id) === String(selectedNotification.id));
+    if (updated) {
+      setSelectedNotification(updated);
+    }
+  }, [notifications, selectedNotification?.id]);
+
+  useEffect(() => {
+    if (!selectedNotification) return undefined;
+
+    const handleEsc = (event) => {
+      if (event.key === 'Escape') {
+        setSelectedNotification(null);
+      }
+    };
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', handleEsc);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.removeEventListener('keydown', handleEsc);
+    };
+  }, [selectedNotification]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -300,9 +429,9 @@ export default function Navbar() {
                       <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform ${notificationOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
-                      {notifications.length > 0 && (
+                      {unreadCount > 0 && (
                         <span className='absolute -top-3 -right-3 min-w-5 h-5 px-1 bg-[#ff9100] text-white text-xs font-bold rounded-full flex items-center justify-center'>
-                          {notifications.length}
+                          {unreadCount}
                         </span>
                       )}
                     </button>
@@ -318,14 +447,14 @@ export default function Navbar() {
                               </svg>
                             </span>
                             <p className='text-sm font-black text-white'>Notifications</p>
-                            {notifications.length > 0 && (
+                            {unreadCount > 0 && (
                               <span className='text-[0.62rem] font-black uppercase tracking-wider text-[#ff9100] bg-[#ff9100]/15 border border-[#ff9100]/35 px-2 py-0.5 rounded-full'>
-                                {notifications.length} New
+                                {unreadCount} New
                               </span>
                             )}
                           </div>
                           <button
-                            onClick={() => setNotifications([])}
+                            onClick={handleMarkAllNotificationsRead}
                             className='text-[0.7rem] font-bold text-[#c77dff] hover:text-[#ff9100] transition'
                           >
                             Mark all read
@@ -344,16 +473,20 @@ export default function Navbar() {
                           {!notificationsLoading && notifications.map((item, idx) => {
                             const style = getNotifStyle(item.tag);
                             return (
-                              <div
+                              <button
                                 key={item.id || idx}
-                                className='bg-[#24123f] border border-[#7b2cbf]/25 rounded-xl p-3 flex gap-3 hover:bg-[#2a1547] hover:border-[#c77dff]/45 transition-colors'
+                                type='button'
+                                onClick={() => handleOpenNotification(item)}
+                                className={`border rounded-xl p-3 flex gap-3 transition-colors ${Number(item.is_read || 0) === 1 ? 'bg-[#1e1035] border-[#7b2cbf]/15 hover:bg-[#25113f]' : 'bg-[#24123f] border-[#7b2cbf]/25 hover:bg-[#2a1547] hover:border-[#c77dff]/45'}`}
                               >
                                 <div className='relative shrink-0'>
                                   <div className='w-9 h-9 rounded-lg bg-[#3c096c] text-white text-[0.58rem] font-black flex items-center justify-center'>CCS</div>
-                                  <span className='absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#ff9100] border border-[#140828]' />
+                                  {Number(item.is_read || 0) === 0 && (
+                                    <span className='absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#ff9100] border border-[#140828]' />
+                                  )}
                                 </div>
 
-                                <div className='min-w-0 flex-1'>
+                                <div className='min-w-0 flex-1 text-left'>
                                   <div className='flex items-center justify-between gap-2'>
                                     <p className='text-xs font-black uppercase tracking-wider text-[#e9d5ff]'>CCS ADMIN</p>
                                     <span className='text-[0.64rem] text-[#a78bca] shrink-0'>{formatNotificationTime(item.created_at)}</span>
@@ -369,7 +502,7 @@ export default function Navbar() {
                                     </span>
                                   )}
                                 </div>
-                              </div>
+                              </button>
                             );
                           })}
                         </div>
@@ -613,6 +746,69 @@ export default function Navbar() {
           </div>
         )}
       </nav>
+
+      {selectedNotification && (
+        <div
+          className='fixed inset-0 z-60 flex items-center justify-center bg-[#1a0030]/65 backdrop-blur-[2px] p-4'
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setSelectedNotification(null);
+            }
+          }}
+        >
+          <div className='w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-2xl bg-white shadow-2xl border border-gray-200 flex flex-col'>
+            <div className='h-1.5 w-full bg-linear-to-r from-[#3c096c] to-[#ff9100]' />
+
+            <div className='px-5 sm:px-6 py-4 border-b border-gray-100 flex items-start justify-between gap-4'>
+              <div className='flex items-center gap-2.5 min-w-0'>
+                <div className='w-9 h-9 rounded-lg bg-[#3c096c] flex items-center justify-center shrink-0'>
+                  <span className='text-white text-[0.55rem] font-black'>CCS</span>
+                </div>
+                <div className='min-w-0'>
+                  <p className='text-sm font-black text-[#1a0030] tracking-wide'>CCS ADMIN</p>
+                  <p className='text-[0.7rem] font-semibold text-gray-400'>{formatNotificationDateTime(selectedNotification.created_at)}</p>
+                </div>
+              </div>
+
+              <button
+                type='button'
+                onClick={() => setSelectedNotification(null)}
+                className='w-8 h-8 rounded-lg border border-gray-200 text-gray-500 hover:text-[#3c096c] hover:border-[#3c096c]/30 hover:bg-[#3c096c]/5 flex items-center justify-center transition-colors'
+                aria-label='Close notification'
+              >
+                <svg className='w-4 h-4' fill='none' stroke='currentColor' strokeWidth='1.8' viewBox='0 0 24 24'>
+                  <path strokeLinecap='round' strokeLinejoin='round' d='M6 18L18 6M6 6l12 12' />
+                </svg>
+              </button>
+            </div>
+
+            <div className='px-5 sm:px-6 py-5 overflow-y-auto'>
+              {selectedNotification.tag && (
+                <div className='flex items-center gap-2 mb-3'>
+                  <span
+                    className='text-[0.58rem] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border'
+                    style={{
+                      background: getNotifStyle(selectedNotification.tag).pillBg,
+                      color: getNotifStyle(selectedNotification.tag).pillColor,
+                      borderColor: getNotifStyle(selectedNotification.tag).pillColor + '40',
+                    }}
+                  >
+                    {selectedNotification.tag}
+                  </span>
+                </div>
+              )}
+
+              <h3 className='text-xl sm:text-2xl font-black text-[#1a0030] leading-tight mb-3 wrap-break-word'>
+                {selectedNotification.title || 'Notification'}
+              </h3>
+
+              <p className='text-sm sm:text-base text-gray-700 leading-relaxed whitespace-pre-line wrap-break-word'>
+                {selectedNotification.message || 'No details provided.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -7,6 +7,8 @@ import Dashboard from "./Student/Dashboard";
 import StudentProfile from "./Student/StudentProfile";
 import StudentHistory from "./Student/StudentHistory";
 import AdminOverview from "./Admin/AdminOverview";
+import CreateAnnouncement from "./Admin/CreateAnnouncement";
+import AnnouncementRecords from "./Admin/AnnouncementRecords";
 import SearchStudent from "./Admin/SearchStudent";
 import CurrentSessions from "./Admin/CurrentSessions";
 import SitInRecords from "./Admin/SitInRecords";
@@ -92,6 +94,22 @@ function App() {
               element={
                 <RequireAuth role="admin">
                   <SitInRecords />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/admin/create-announcement"
+              element={
+                <RequireAuth role="admin">
+                  <CreateAnnouncement />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/admin/announcement-records"
+              element={
+                <RequireAuth role="admin">
+                  <AnnouncementRecords />
                 </RequireAuth>
               }
             />

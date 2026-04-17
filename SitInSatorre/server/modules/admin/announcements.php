@@ -21,7 +21,12 @@ function handle_admin_create_announcement(mysqli $db, array $input): void {
               VALUES ('$title', '$message', '$tag', '$created_by')";
 
     if (!$db->query($query)) {
-        json_response(500, ['success' => false, 'message' => 'Failed to create announcement']);
+        $db_error = $db->error;
+        debug_log('Failed to create announcement: ' . $db_error);
+        json_response(500, [
+            'success' => false,
+            'message' => 'Failed to create announcement: ' . $db_error,
+        ]);
     }
 
     json_response(201, [

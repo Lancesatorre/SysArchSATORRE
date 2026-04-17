@@ -61,6 +61,8 @@ $routes = [
     'adminUpdateAnnouncement' => 'handle_admin_update_announcement',
     'adminDeleteAnnouncement' => 'handle_admin_delete_announcement',
     'fetchNotifications' => 'handle_fetch_notifications',
+    'markNotificationRead' => 'handle_mark_notification_read',
+    'markAllNotificationsRead' => 'handle_mark_all_notifications_read',
 ];
 
 if ($request_method !== 'POST') {

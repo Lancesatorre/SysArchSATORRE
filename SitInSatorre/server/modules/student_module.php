@@ -67,15 +67,25 @@ function handle_student_profile_stats(mysqli $db, array $input): void {
 }
 
 function handle_fetch_notifications(mysqli $db, array $input): void {
-    $id_number = trim($input['idNumber'] ?? '');
+        $id_number = esc($db, trim($input['idNumber'] ?? ''));
     if ($id_number === '') {
         json_response(400, ['success' => false, 'message' => 'ID number is required']);
     }
 
-    $query = "SELECT id, title, message, tag, created_by, created_at
-              FROM announcements
-              ORDER BY created_at DESC, id DESC
-              LIMIT 30";
+        $query = "SELECT
+                                a.id,
+                                a.title,
+                                a.message,
+                                a.tag,
+                                a.created_by,
+                                a.created_at,
+                                CASE WHEN nr.id IS NULL THEN 0 ELSE 1 END AS is_read
+                            FROM announcements a
+                            LEFT JOIN notification_reads nr
+                                ON nr.announcement_id = a.id
+                             AND nr.student_id_number = '$id_number'
+                            ORDER BY a.created_at DESC, a.id DESC
+                            LIMIT 30";
     $result = $db->query($query);
 
     if (!$result) {
@@ -83,7 +93,13 @@ function handle_fetch_notifications(mysqli $db, array $input): void {
     }
 
     $notifications = [];
+    $unread_count = 0;
     while ($row = $result->fetch_assoc()) {
+        $is_read = intval($row['is_read'] ?? 0);
+        $row['is_read'] = $is_read;
+        if ($is_read === 0) {
+            $unread_count++;
+        }
         $notifications[] = $row;
     }
 
@@ -91,6 +107,62 @@ function handle_fetch_notifications(mysqli $db, array $input): void {
         'success' => true,
         'message' => 'Notifications fetched',
         'notifications' => $notifications,
+        'unreadCount' => $unread_count,
+    ]);
+}
+
+function handle_mark_notification_read(mysqli $db, array $input): void {
+    $id_number = esc($db, trim($input['idNumber'] ?? ''));
+    $notification_id = intval($input['notificationId'] ?? 0);
+
+    if ($id_number === '') {
+        json_response(400, ['success' => false, 'message' => 'ID number is required']);
+    }
+    if ($notification_id <= 0) {
+        json_response(400, ['success' => false, 'message' => 'Invalid notification ID']);
+    }
+
+    $exists_query = "SELECT id FROM announcements WHERE id = $notification_id LIMIT 1";
+    $exists_result = $db->query($exists_query);
+    if (!$exists_result || $exists_result->num_rows === 0) {
+        json_response(404, ['success' => false, 'message' => 'Notification not found']);
+    }
+
+    $query = "INSERT INTO notification_reads (student_id_number, announcement_id)
+              VALUES ('$id_number', $notification_id)
+              ON DUPLICATE KEY UPDATE read_at = CURRENT_TIMESTAMP";
+
+    if (!$db->query($query)) {
+        json_response(500, ['success' => false, 'message' => 'Failed to mark notification as read']);
+    }
+
+    json_response(200, [
+        'success' => true,
+        'message' => 'Notification marked as read',
+    ]);
+}
+
+function handle_mark_all_notifications_read(mysqli $db, array $input): void {
+    $id_number = esc($db, trim($input['idNumber'] ?? ''));
+    if ($id_number === '') {
+        json_response(400, ['success' => false, 'message' => 'ID number is required']);
+    }
+
+    $query = "INSERT INTO notification_reads (student_id_number, announcement_id)
+              SELECT '$id_number', a.id
+              FROM announcements a
+              LEFT JOIN notification_reads nr
+                ON nr.announcement_id = a.id
+               AND nr.student_id_number = '$id_number'
+              WHERE nr.id IS NULL";
+
+    if (!$db->query($query)) {
+        json_response(500, ['success' => false, 'message' => 'Failed to mark all notifications as read']);
+    }
+
+    json_response(200, [
+        'success' => true,
+        'message' => 'All notifications marked as read',
     ]);
 }
 
@@ -173,36 +245,8 @@ function handle_student_history(mysqli $db, array $input): void {
 }
 
 function handle_student_submit_feedback(mysqli $db, array $input): void {
-    $id_number = esc($db, trim($input['idNumber'] ?? ''));
-    $record_id = intval($input['recordId'] ?? 0);
-    $feedback = esc($db, trim($input['feedback'] ?? ''));
-
-    if ($id_number === '') {
-        json_response(400, ['success' => false, 'message' => 'ID number is required']);
-    }
-    if ($record_id <= 0) {
-        json_response(400, ['success' => false, 'message' => 'Invalid record ID']);
-    }
-    if ($feedback === '') {
-        json_response(400, ['success' => false, 'message' => 'Feedback is required']);
-    }
-
-    $check_query = "SELECT id FROM sit_in_records WHERE id = $record_id AND student_id_number = '$id_number' LIMIT 1";
-    $check_result = $db->query($check_query);
-    if (!$check_result || $check_result->num_rows === 0) {
-        json_response(404, ['success' => false, 'message' => 'Record not found for this student']);
-    }
-
-    $query = "UPDATE sit_in_records
-              SET student_feedback = '$feedback'
-              WHERE id = $record_id AND student_id_number = '$id_number'";
-
-    if (!$db->query($query)) {
-        json_response(500, ['success' => false, 'message' => 'Failed to save feedback']);
-    }
-
-    json_response(200, [
-        'success' => true,
-        'message' => 'Feedback saved successfully',
+    json_response(403, [
+        'success' => false,
+        'message' => 'Student feedback submission is disabled. Only admin feedback is allowed.',
     ]);
 }

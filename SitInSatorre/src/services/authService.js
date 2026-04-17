@@ -1,41 +1,91 @@
-// Stable API endpoint to avoid CORS issues from probing invalid paths.
-const API_URL = (() => {
-  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-  if (window.location.port === "5173") {
-    return "http://localhost:8080/SysArchSATORRE/SitInSatorre/server/authenticate.php";
+const API_PATH = "/SysArchSATORRE/SitInSatorre/server/authenticate.php";
+
+const buildApiCandidates = () => {
+  const explicitApiUrl = import.meta.env.VITE_API_URL?.trim();
+  if (explicitApiUrl) return [explicitApiUrl];
+
+  const { protocol, hostname, origin, port } = window.location;
+  const candidates = [];
+
+  const addCandidate = (url) => {
+    if (url && !candidates.includes(url)) {
+      candidates.push(url);
+    }
+  };
+
+  // Vite dev mode usually runs on 5173; try common PHP hosts in order.
+  if (port === "5173") {
+    addCandidate(`${protocol}//${hostname}:8080${API_PATH}`);
+    addCandidate(`${protocol}//${hostname}${API_PATH}`);
+    addCandidate(`http://localhost${API_PATH}`);
+    addCandidate(`http://127.0.0.1${API_PATH}`);
+  } else {
+    addCandidate(`${origin}${API_PATH}`);
   }
-  return `${window.location.origin}/SysArchSATORRE/SitInSatorre/server/authenticate.php`;
-})();
+
+  return candidates;
+};
+
+const API_URL_CANDIDATES = buildApiCandidates();
+let activeApiUrl = API_URL_CANDIDATES[0];
+
+const getApiCandidateOrder = () => {
+  const remaining = API_URL_CANDIDATES.filter((url) => url !== activeApiUrl);
+  return [activeApiUrl, ...remaining];
+};
 
 // Helper function to handle API requests
 const apiRequest = async (action, data) => {
   try {
-    console.log(`[AUTH] Making ${action} request to:`, `${API_URL}?action=${action}`);
-    console.log(`[AUTH] Request data:`, data);
+    let lastNetworkError = null;
 
-    const response = await fetch(`${API_URL}?action=${action}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-      body: JSON.stringify(data),
-    });
+    for (const baseUrl of getApiCandidateOrder()) {
+      try {
+        console.log(`[AUTH] Making ${action} request to:`, `${baseUrl}?action=${action}`);
+        console.log(`[AUTH] Request data:`, data);
 
-    console.log(`[AUTH] Response status: ${response.status}`);
+        const response = await fetch(`${baseUrl}?action=${action}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify(data),
+        });
 
-    const responseData = await response.json();
-    console.log(`[AUTH] Response data:`, responseData);
+        console.log(`[AUTH] Response status: ${response.status}`);
 
-    if (!response.ok) {
-      throw new Error(responseData?.message || `HTTP ${response.status}`);
+        const responseData = await response.json();
+        console.log(`[AUTH] Response data:`, responseData);
+
+        if (!response.ok) {
+          throw new Error(responseData?.message || `HTTP ${response.status}`);
+        }
+
+        if (!responseData.success) {
+          throw new Error(responseData?.message || "Request failed");
+        }
+
+        activeApiUrl = baseUrl;
+        return responseData;
+      } catch (error) {
+        const isNetworkError =
+          error instanceof TypeError &&
+          /(Failed to fetch|NetworkError|Load failed)/i.test(error.message || "");
+
+        if (!isNetworkError) {
+          throw error;
+        }
+
+        lastNetworkError = error;
+      }
     }
 
-    if (!responseData.success) {
-      throw new Error(responseData?.message || "Request failed");
-    }
-
-    return responseData;
+    const triedTargets = API_URL_CANDIDATES.join(", ");
+    throw new Error(
+      `Unable to reach backend API. Tried: ${triedTargets}. ` +
+        "Set VITE_API_URL to your working authenticate.php URL."
+    );
   } catch (error) {
     console.error(`[AUTH] Error (${action}):`, error);
     throw error;
@@ -46,7 +96,8 @@ export const authService = {
 
   getAdminId: () => {
     const user = authService.getUser();
-    return user?.id_number || "";
+    // Support both current (id_number) and legacy (idNumber) cached user shapes.
+    return (user?.id_number || user?.idNumber || "").toString().trim();
   },
 
   // =========================
@@ -312,9 +363,31 @@ export const authService = {
   fetchNotifications: async (idNumber) => {
     try {
       const response = await apiRequest("fetchNotifications", { idNumber });
-      return response.notifications || [];
+      return {
+        notifications: response.notifications || [],
+        unreadCount: Number(response.unreadCount || 0),
+      };
     } catch (error) {
       throw new Error(error.message || "Failed to fetch notifications");
+    }
+  },
+
+  markNotificationRead: async ({ idNumber, notificationId }) => {
+    try {
+      return await apiRequest("markNotificationRead", {
+        idNumber,
+        notificationId,
+      });
+    } catch (error) {
+      throw new Error(error.message || "Failed to mark notification as read");
+    }
+  },
+
+  markAllNotificationsRead: async (idNumber) => {
+    try {
+      return await apiRequest("markAllNotificationsRead", { idNumber });
+    } catch (error) {
+      throw new Error(error.message || "Failed to mark all notifications as read");
     }
   },
 

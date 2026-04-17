@@ -28,19 +28,31 @@ const STATUS_CLASS = {
   Completed: 'bg-[#ff9100]/20 text-[#ff9100] border-[#ff9100]',
 }
 const PAGE_SIZE = 8
-const hasFeedback = (row) => String(row?.student_feedback || '').trim() !== ''
+const hasAdminFeedback = (row) => String(row?.admin_feedback || '').trim() !== ''
 
 export default function StudentHistory() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
   const [records, setRecords] = useState([])
   const [studentIdNumber, setStudentIdNumber] = useState('')
-  const [feedbackModal, setFeedbackModal] = useState({ open: false, record: null, feedback: '', mode: 'full' })
-  const [savingFeedback, setSavingFeedback] = useState(false)
-  const [feedbackError, setFeedbackError] = useState('')
+  const [feedbackModal, setFeedbackModal] = useState({ open: false, record: null })
   const [page, setPage] = useState(1)
+
+  const refreshHistoryData = async (idNumber, showError = false) => {
+    if (!idNumber) return
+
+    try {
+      const rows = await authService.fetchStudentHistory(idNumber)
+      setRecords(Array.isArray(rows) ? rows : [])
+      setError('')
+    } catch (err) {
+      if (showError) {
+        setError(err?.message || 'Failed to load history')
+        setRecords([])
+      }
+    }
+  }
 
   useEffect(() => {
     const load = async () => {
@@ -52,11 +64,7 @@ export default function StudentHistory() {
       setStudentIdNumber(user.id_number)
 
       try {
-        const rows = await authService.fetchStudentHistory(user.id_number)
-        setRecords(Array.isArray(rows) ? rows : [])
-      } catch (err) {
-        setError(err?.message || 'Failed to load history')
-        setRecords([])
+        await refreshHistoryData(user.id_number, true)
       } finally {
         setLoading(false)
       }
@@ -64,6 +72,34 @@ export default function StudentHistory() {
 
     load()
   }, [navigate])
+
+  useEffect(() => {
+    if (!studentIdNumber) return undefined
+
+    let cancelled = false
+
+    const refresh = async () => {
+      if (cancelled) return
+      await refreshHistoryData(studentIdNumber)
+    }
+
+    const intervalId = setInterval(refresh, 10000)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refresh()
+      }
+    }
+
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      cancelled = true
+      clearInterval(intervalId)
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [studentIdNumber])
 
   const summary = useMemo(() => {
     const total = records.length
@@ -84,56 +120,16 @@ export default function StudentHistory() {
     setPage((prev) => Math.min(prev, totalPages))
   }, [totalPages])
 
-  const openFeedbackModal = (row, mode = 'full') => {
+  const openFeedbackModal = (row) => {
     if (!row || row.status === 'Active' || Number(row.id || 0) <= 0) return
-    setFeedbackError('')
     setFeedbackModal({
       open: true,
       record: row,
-      feedback: row.student_feedback || '',
-      mode,
     })
   }
 
   const closeFeedbackModal = () => {
-    if (savingFeedback) return
-    setFeedbackError('')
-    setFeedbackModal({ open: false, record: null, feedback: '', mode: 'full' })
-  }
-
-  const handleSaveFeedback = async () => {
-    const target = feedbackModal.record
-    const text = String(feedbackModal.feedback || '').trim()
-    if (!target || !studentIdNumber) return
-    if (!text) {
-      setFeedbackError('Feedback is required.')
-      return
-    }
-
-    try {
-      setSavingFeedback(true)
-      setFeedbackError('')
-      setSuccess('')
-
-      await authService.submitStudentFeedback({
-        idNumber: studentIdNumber,
-        recordId: Number(target.id),
-        feedback: text,
-      })
-
-      setRecords(prev => prev.map(row => (
-        Number(row.id) === Number(target.id)
-          ? { ...row, student_feedback: text }
-          : row
-      )))
-
-      setFeedbackModal({ open: false, record: null, feedback: '', mode: 'full' })
-      setSuccess('Feedback saved successfully.')
-    } catch (err) {
-      setFeedbackError(err?.message || 'Failed to save feedback')
-    } finally {
-      setSavingFeedback(false)
-    }
+    setFeedbackModal({ open: false, record: null })
   }
 
   if (loading) {
@@ -174,8 +170,6 @@ export default function StudentHistory() {
             <p className="text-sm font-bold text-[#1a0030]">Session Records</p>
           </div>
 
-          {success && <div className="px-5 py-3 text-sm text-green-700 bg-green-50 border-b border-green-100">{success}</div>}
-
           {error ? (
             <div className="p-5 text-sm text-red-500">{error}</div>
           ) : records.length === 0 ? (
@@ -190,11 +184,9 @@ export default function StudentHistory() {
                       <th className="px-4 py-3">Purpose</th>
                       <th className="px-4 py-3">Status</th>
                       <th className="px-4 py-3">Admin Feedback</th>
-                      <th className="px-4 py-3">Your Feedback</th>
                       <th className="px-4 py-3">Started</th>
                       <th className="px-4 py-3">Ended</th>
                       <th className="px-4 py-3">Duration</th>
-                      <th className="px-4 py-3">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -210,20 +202,8 @@ export default function StudentHistory() {
                         <td className="px-4 py-3 text-sm">
                           {row.status === 'Active' ? (
                             <span className="text-xs font-semibold text-gray-400">—</span>
-                          ) : (
-                            <button
-                              onClick={() => openFeedbackModal(row, 'admin')}
-                              className="text-xs font-bold px-3 py-1.5 rounded-lg border border-[#3c096c]/20 text-[#3c096c] hover:bg-[#3c096c]/5 transition-colors"
-                            >
-                              View
-                            </button>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          {row.status === 'Active' ? (
-                            <span className="text-xs font-semibold text-gray-400">—</span>
-                          ) : !hasFeedback(row) ? (
-                            <span className="text-xs font-semibold text-gray-400">--</span>
+                          ) : !hasAdminFeedback(row) ? (
+                            <span className="text-xs font-semibold text-gray-400">No feedback</span>
                           ) : (
                             <button
                               onClick={() => openFeedbackModal(row)}
@@ -236,20 +216,6 @@ export default function StudentHistory() {
                         <td className="px-4 py-3 text-sm text-gray-600">{formatDateTime(row.started_at)}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{row.status === 'Active' ? 'In Progress' : formatDateTime(row.ended_at)}</td>
                         <td className="px-4 py-3 text-sm font-bold text-[#3c096c]">{formatDuration(row.duration_minutes)}</td>
-                        <td className="px-4 py-3 text-sm">
-                          {row.status === 'Active' ? (
-                            <span className="text-xs font-semibold text-gray-400">—</span>
-                          ) : hasFeedback(row) ? (
-                            <span className="text-xs font-semibold text-[#ff9100]">Submitted</span>
-                          ) : (
-                            <button
-                              onClick={() => openFeedbackModal(row)}
-                              className="text-xs font-bold px-3 py-1.5 rounded-lg border border-[#3c096c]/20 text-[#3c096c] hover:bg-[#3c096c]/5 transition-colors"
-                            >
-                              Add Feedback
-                            </button>
-                          )}
-                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -273,25 +239,13 @@ export default function StudentHistory() {
                     </div>
                     <p className="text-[0.7rem] text-gray-400 mt-2">Start: {formatDateTime(row.started_at)}</p>
                     <p className="text-[0.7rem] text-gray-400">End: {row.status === 'Active' ? 'In Progress' : formatDateTime(row.ended_at)}</p>
-                    {row.status !== 'Active' && (
-                      hasFeedback(row) ? (
-                        <div className="mt-2 flex items-center gap-2">
-                          <span className="text-xs font-semibold text-[#ff9100]">Submitted</span>
-                          <button
-                            onClick={() => openFeedbackModal(row)}
-                            className="text-xs font-bold px-3 py-1.5 rounded-lg border border-[#3c096c]/20 text-[#3c096c] hover:bg-[#3c096c]/5 transition-colors"
-                          >
-                            View
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => openFeedbackModal(row)}
-                          className="mt-2 text-xs font-bold px-3 py-1.5 rounded-lg border border-[#3c096c]/20 text-[#3c096c] hover:bg-[#3c096c]/5 transition-colors"
-                        >
-                          Add Feedback
-                        </button>
-                      )
+                    {row.status !== 'Active' && hasAdminFeedback(row) && (
+                      <button
+                        onClick={() => openFeedbackModal(row)}
+                        className="mt-2 text-xs font-bold px-3 py-1.5 rounded-lg border border-[#3c096c]/20 text-[#3c096c] hover:bg-[#3c096c]/5 transition-colors"
+                      >
+                        View Admin Feedback
+                      </button>
                     )}
                   </div>
                 ))}
@@ -334,41 +288,18 @@ export default function StudentHistory() {
                 </p>
               </div>
               <div className="px-6 py-5">
-    
-
-                {feedbackModal.mode !== 'admin' && (
-                  <>
-                    <label className="mt-4 block text-[0.62rem] font-black uppercase tracking-[0.14em] text-gray-400">Your feedback</label>
-                    {feedbackError && <p className="mt-2 text-xs text-red-500">{feedbackError}</p>}
-                    <textarea
-                      value={feedbackModal.feedback}
-                      onChange={(e) => setFeedbackModal(prev => ({ ...prev, feedback: e.target.value }))}
-                      rows={5}
-                      placeholder="Share your session experience..."
-                      readOnly={hasFeedback(feedbackModal.record)}
-                      className="mt-2 w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-gray-700 focus:outline-none focus:border-[#3c096c] focus:bg-white transition-all resize-none"
-                    />
-                  </>
-                )}
-
+                <label className="block text-[0.62rem] font-black uppercase tracking-[0.14em] text-gray-400">Admin feedback</label>
+                <div className="mt-2 w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-3.5 py-3 text-sm font-semibold text-gray-700 min-h-28 whitespace-pre-wrap">
+                  {String(feedbackModal.record?.admin_feedback || '').trim() || 'No feedback provided by admin.'}
+                </div>
               </div>
               <div className="px-6 pb-5 flex justify-end gap-2">
                 <button
                   onClick={closeFeedbackModal}
-                  disabled={savingFeedback}
                   className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-bold text-gray-500 hover:bg-gray-50 disabled:opacity-50"
                 >
-                  {feedbackModal.mode === 'admin' || hasFeedback(feedbackModal.record) ? 'Close' : 'Cancel'}
+                  Close
                 </button>
-                {feedbackModal.mode !== 'admin' && !hasFeedback(feedbackModal.record) && (
-                  <button
-                    onClick={handleSaveFeedback}
-                    disabled={savingFeedback}
-                    className="px-4 py-2 rounded-xl bg-[#3c096c] text-white text-sm font-bold hover:bg-[#5a189a] disabled:opacity-50"
-                  >
-                    {savingFeedback ? 'Saving...' : 'Save Feedback'}
-                  </button>
-                )}
               </div>
             </div>
           </div>
