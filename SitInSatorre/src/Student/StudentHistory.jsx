@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authService } from '../services/authService'
+import LoadingScreen from '../components/LoadingScreen'
 
 const formatDateTime = (value) => {
   if (!value) return '—'
@@ -132,13 +133,7 @@ export default function StudentHistory() {
     setFeedbackModal({ open: false, record: null })
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-[80vh] flex items-center justify-center">
-        <div className="w-10 h-10 rounded-full border-4 border-[#3c096c]/25 border-t-[#3c096c] animate-spin" />
-      </div>
-    )
-  }
+  if (loading) return <LoadingScreen message="Loading sit-in history..." />
 
   return (
     <div className="pt-2 sm:pt-3 pb-4 sm:pb-6 px-1 sm:px-2 bg-transparent">

@@ -1,7 +1,861 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+html,
+body {
+  overflow-x: clip;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
 body {
   font-family: "Poppins", sans-serif;
-  /* background: linear-gradient(to bottom right, #eff6ff, #ffffff, #fef3c7); */
-  /* margin-left: 20px; */
+  color: #1a0030;
+  background-color: #f3f4f6;
+  position: relative;
+}
+
+/* Smooth background transition: gradient in body::before fades out to reveal dark solid color */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(135deg, #d1d5db 0%, #f3f4f6 50%, #ffffff 100%) no-repeat;
+  background-attachment: fixed;
+  background-size: cover;
+  z-index: -1;
+  opacity: 1;
+  transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+html.dark body {
+  background-color: #0c0612 !important;
+  background-image: none !important;
+}
+
+html.dark body::before {
+  opacity: 0;
+}
+
+/* Enable global smooth transitions for all theme-affected elements */
+body,
+nav,
+div,
+span,
+p,
+a,
+button,
+input,
+select,
+textarea,
+h1,
+h2,
+h3,
+h4,
+th,
+td,
+table,
+svg,
+.bg-white,
+.border-gray-200 {
+  transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              color 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              fill 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              stroke 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Premium circular theme reveal using View Transitions API */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 9999;
+}
+
+/* Base Light Mode Typography Overrides */
+/* Ensures all text colors use variations of signature #1a0030 in light mode */
+html:not(.dark) .text-gray-900,
+html:not(.dark) .text-slate-900,
+html:not(.dark) .text-zinc-900,
+html:not(.dark) .text-stone-900,
+html:not(.dark) .text-black,
+html:not(.dark) h1,
+html:not(.dark) h2,
+html:not(.dark) h3,
+html:not(.dark) h4 {
+  color: #1a0030 !important;
+}
+
+html:not(.dark) .text-gray-800,
+html:not(.dark) .text-gray-700,
+html:not(.dark) .text-slate-700,
+html:not(.dark) .text-zinc-700,
+html:not(.dark) p,
+html:not(.dark) th,
+html:not(.dark) td {
+  color: rgba(26, 0, 48, 0.85) !important;
+}
+
+html:not(.dark) .text-gray-600,
+html:not(.dark) .text-slate-600,
+html:not(.dark) .text-zinc-600 {
+  color: rgba(26, 0, 48, 0.72) !important;
+}
+
+html:not(.dark) .text-gray-500,
+html:not(.dark) .text-gray-400,
+html:not(.dark) .text-slate-500,
+html:not(.dark) .text-slate-400 {
+  color: rgba(26, 0, 48, 0.58) !important;
+}
+
+/* Banner and Active Card Contrast Restorations in Light Mode */
+html:not(.dark) [class*="bg-[#3c096c]"] h1,
+html:not(.dark) [class*="bg-[#3c096c]"] h2,
+html:not(.dark) [class*="bg-[#3c096c]"] h3,
+html:not(.dark) [class*="bg-[#3c096c]"] .text-white,
+html:not(.dark) [class*="from-[#3c096c]"] h1,
+html:not(.dark) [class*="from-[#3c096c]"] h2,
+html:not(.dark) [class*="from-[#3c096c]"] h3,
+html:not(.dark) [class*="from-[#3c096c]"] .text-white,
+html:not(.dark) [class*="to-[#1a0030]"] h1,
+html:not(.dark) [class*="to-[#1a0030]"] h2,
+html:not(.dark) [class*="to-[#1a0030]"] h3,
+html:not(.dark) [class*="to-[#1a0030]"] .text-white {
+  color: #ffffff !important;
+}
+
+html:not(.dark) [class*="bg-[#3c096c]"] p,
+html:not(.dark) [class*="bg-[#3c096c]"] [class*="text-purple-300"],
+html:not(.dark) [class*="bg-[#3c096c]"] [class*="text-purple-200"],
+html:not(.dark) [class*="from-[#3c096c]"] p,
+html:not(.dark) [class*="from-[#3c096c]"] [class*="text-purple-300"],
+html:not(.dark) [class*="from-[#3c096c]"] [class*="text-purple-200"],
+html:not(.dark) [class*="to-[#1a0030]"] p,
+html:not(.dark) [class*="to-[#1a0030]"] [class*="text-purple-300"],
+html:not(.dark) [class*="to-[#1a0030]"] [class*="text-purple-200"] {
+  color: rgba(216, 180, 254, 0.85) !important;
+  /* Elegant light lavender-purple */
+}
+
+html:not(.dark) [class*="bg-[#3c096c]"] span,
+html:not(.dark) [class*="bg-[#3c096c]"] [class*="text-white/80"],
+html:not(.dark) [class*="from-[#3c096c]"] span,
+html:not(.dark) [class*="from-[#3c096c]"] [class*="text-white/80"],
+html:not(.dark) [class*="to-[#1a0030]"] span,
+html:not(.dark) [class*="to-[#1a0030]"] [class*="text-white/80"] {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+html:not(.dark) [class*="bg-[#3c096c]"] [class*="text-white/65"],
+html:not(.dark) [class*="from-[#3c096c]"] [class*="text-white/65"],
+html:not(.dark) [class*="to-[#1a0030]"] [class*="text-white/65"] {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+html:not(.dark) [class*="bg-[#3c096c]"] [class*="text-white/35"],
+html:not(.dark) [class*="from-[#3c096c]"] [class*="text-white/35"],
+html:not(.dark) [class*="to-[#1a0030]"] [class*="text-white/35"] {
+  color: rgba(255, 255, 255, 0.35) !important;
+}
+
+/* Premium Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(157, 78, 221, 0.2);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(157, 78, 221, 0.4);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(199, 125, 255, 0.15);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(199, 125, 255, 0.3);
+}
+
+/* ==========================================================================
+   PREMIUM SOOTHING DARK THEME OVERRIDES (Deep Cosmic & Soothing Content)
+   ========================================================================== */
+
+/* ==========================================================================
+   PREMIUM MONOCHROME CYBER DARK PALETTE (Obsidian, Carbon & Slate Silver)
+   ========================================================================== */
+
+.dark {
+  color-scheme: dark;
+}
+
+/* 1. Global Page Backgrounds (Pure Deep Obsidian Black) */
+.dark .min-h-screen.bg-linear-to-br.from-gray-400.to-white,
+.dark .min-h-screen.bg-gradient-to-br.from-gray-400.to-white,
+.dark [class*="min-h-screen"] {
+  background-image: none !important;
+  background-color: #09090b !important;
+}
+
+/* 2. Card and Surface Colors (Sleek Zinc / Carbon Carbonates) */
+.dark .bg-white {
+  background-color: #18181b !important;
+  /* Premium Matte Zinc Card */
+  border-color: #27272a !important;
+  /* Elegant Fine Border */
+  color: #f4f4f5 !important;
+}
+
+.dark .bg-gray-50,
+.dark .bg-slate-50,
+.dark .bg-zinc-50 {
+  background-color: #0f0f11 !important;
+  /* Carbon Matte */
+  border-color: #27272a !important;
+}
+
+.dark .bg-gray-100,
+.dark .bg-slate-100,
+.dark .bg-zinc-100 {
+  background-color: #27272a !important;
+  /* Dark Zinc Surface */
+  border-color: #3f3f46 !important;
+}
+
+.dark .bg-gray-200,
+.dark .bg-slate-200,
+.dark .bg-zinc-200,
+.dark [class*="bg-gray-200/80"],
+.dark [class*="bg-gray-200"] {
+  background-color: #27272a !important;
+  border-color: #3f3f46 !important;
+}
+
+.dark .hover\:bg-gray-200:hover,
+.dark [class*="hover:bg-gray-200"]:hover,
+.dark .bg-gray-300,
+.dark .bg-slate-300,
+.dark .bg-zinc-300 {
+  background-color: #3f3f46 !important;
+}
+
+/* Semi-transparent backdrop surface overrides (opacity-suffixed bg classes) */
+.dark [class*="bg-gray-50/"],
+.dark [class*="bg-slate-50/"],
+.dark [class*="bg-zinc-50/"] {
+  background-color: rgba(24, 24, 27, 0.6) !important;
+}
+
+.dark [class*="bg-gray-100/"],
+.dark [class*="bg-slate-100/"],
+.dark [class*="bg-zinc-100/"] {
+  background-color: rgba(39, 39, 42, 0.7) !important;
+}
+
+.dark [class*="bg-blue-50/"] {
+  background-color: rgba(39, 39, 42, 0.25) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+.dark [class*="bg-orange-50/"] {
+  background-color: rgba(255, 145, 0, 0.1) !important;
+  border-color: rgba(255, 145, 0, 0.25) !important;
+}
+
+/* 3. Text and Headings Typography for Clean Monochrome Contrast */
+.dark .text-gray-900,
+.dark .text-slate-800,
+.dark .text-slate-900,
+.dark .text-zinc-900,
+.dark .text-stone-900,
+.dark .text-\[\#1a0030\] {
+  color: #ffffff !important;
+  /* Brilliant Crisp White Headers */
+}
+
+.dark .text-gray-800,
+.dark .text-gray-700,
+.dark .text-slate-700,
+.dark .text-zinc-700 {
+  color: #e4e4e7 !important;
+  /* Soft Silver Body Text */
+}
+
+.dark .text-gray-600,
+.dark .text-slate-600,
+.dark .text-zinc-600 {
+  color: #a1a1aa !important;
+  /* Crisp Muted Silver-Ash */
+}
+
+.dark .text-gray-500,
+.dark .text-gray-400,
+.dark .text-slate-400,
+.dark .text-slate-500,
+.dark .text-zinc-500,
+.dark .text-zinc-400,
+.dark [class*="text-gray-500"],
+.dark [class*="text-gray-400"] {
+  color: #71717a !important;
+  /* Soft Metallic Slate Dust */
+}
+
+/* Deepest Purple Text Adjustments (text-[#1a0030]) -> crisp white */
+.dark [class*="text-"][class*="1a0030"],
+.dark [class*="text-"][class*="1A0030"],
+.dark .text-\[\#1a0030\] {
+  color: #ffffff !important;
+}
+
+/* Primary Purple Text Adjustments (text-[#3c096c]) -> silver white */
+.dark [class*="text-"][class*="3c096c"],
+.dark [class*="text-"][class*="3C096C"],
+.dark .text-purple-900,
+.dark .text-primary {
+  color: #f4f4f5 !important;
+}
+
+/* Contrast fix: Keep text dark purple/black on solid signature orange/amber elements to prevent contrast issues */
+.dark .bg-\[\#ff9100\],
+.dark .bg-\[\#ff9e00\],
+.dark .bg-\[\#ff9100\] *,
+.dark .bg-\[\#ff9e00\] *,
+.dark .bg-\[\#ff9100\][class*="text-"],
+.dark .bg-\[\#ff9e00\][class*="text-"] {
+  color: #1a0030 !important;
+}
+
+/* Opacity Suffix Muted Adjustments for Deep/Primary Purples -> Silver Mutes */
+.dark [class*="text-"][class*="3c096c/4"],
+.dark [class*="text-"][class*="3C096C/4"],
+.dark [class*="text-"][class*="3c096c/5"],
+.dark [class*="text-"][class*="3C096C/5"],
+.dark [class*="text-"][class*="1a0030/4"],
+.dark [class*="text-"][class*="1A0030/4"],
+.dark [class*="text-"][class*="1a0030/5"],
+.dark [class*="text-"][class*="1A0030/5"] {
+  color: #a1a1aa !important;
+}
+
+.dark [class*="text-"][class*="3c096c/2"],
+.dark [class*="text-"][class*="3C096C/2"],
+.dark [class*="text-"][class*="3c096c/3"],
+.dark [class*="text-"][class*="3C096C/3"] {
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+
+/* Inline Styles Overrides for Deep Muted Purples */
+.dark [style*="color: #4a3f6b"],
+.dark [style*="color:#4a3f6b"],
+.dark [style*="color: #5a3f7a"],
+.dark [style*="color:#5a3f7a"] {
+  color: #d4d4d8 !important;
+}
+
+/* Border Wildcard overrides for Brand Purple -> Clean Silver Borders */
+.dark [class*="border-[#3c096c]"],
+.dark [class*="border-[#3c096c]/"] {
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Soft highlight background pills inside dark mode */
+.dark [class*="bg-[#3c096c]/08"],
+.dark [class*="bg-[#3c096c]/10"],
+.dark [class*="bg-[#3c096c]/15"] {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* 4. Borders & Dividers (Sleek Zinc Borders) */
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-gray-300,
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-300,
+.dark .border-zinc-200,
+.dark hr {
+  border-color: #27272a !important;
+}
+
+/* 5. Inputs, Dropdowns and Form Controls */
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: #0f0f11 !important;
+  border-color: #27272a !important;
+  color: #f4f4f5 !important;
+}
+
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus {
+  background-color: #18181b !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15) !important;
+}
+
+.dark input::placeholder,
+.dark select::placeholder,
+.dark textarea::placeholder {
+  color: #52525b !important;
+}
+
+/* 6. Modals, Dialogs and Popups */
+.dark .modal,
+.dark [class*="max-w-"][class*="bg-white"] {
+  background-color: #18181b !important;
+  border-color: #27272a !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75) !important;
+}
+
+.dark [class*="bg-white\/65"] {
+  background-color: rgba(9, 9, 11, 0.8) !important;
+}
+
+/* 7. Hover Effects */
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-slate-50:hover,
+.dark tr.hover\:bg-gray-50:hover {
+  background-color: #27272a !important;
+}
+
+.dark .hover\:bg-\[\#3c096c\]\/5:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 8. Announcement Tag Pill Colors adjustments for visibility */
+.dark .bg-violet-50 {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: #f4f4f5 !important;
+  border-color: #27272a !important;
+}
+
+.dark .bg-blue-50 {
+  background-color: rgba(56, 189, 248, 0.1) !important;
+  color: #38bdf8 !important;
+  border-color: rgba(56, 189, 248, 0.2) !important;
+}
+
+.dark .bg-orange-50 {
+  background-color: rgba(251, 146, 60, 0.1) !important;
+  color: #fb923c !important;
+  border-color: rgba(251, 146, 60, 0.2) !important;
+}
+
+.dark .bg-red-50 {
+  background-color: rgba(248, 113, 113, 0.1) !important;
+  color: #f87171 !important;
+  border-color: rgba(248, 113, 113, 0.2) !important;
+}
+
+.dark .bg-green-50 {
+  background-color: rgba(74, 222, 128, 0.1) !important;
+  color: #4ade80 !important;
+  border-color: rgba(74, 222, 128, 0.2) !important;
+}
+
+/* 9. UC Rules card overlay and list styles */
+.dark .bg-gray-50.border-b.border-gray-100 {
+  background-color: #18181b !important;
+  border-color: #27272a !important;
+}
+
+.dark .text-gray-500.italic {
+  color: #a1a1aa !important;
+}
+
+/* 10. Login Panel Specific Contrast Overrides */
+.dark [class*="from-[#ff9e00]"] [class*="text-[#3c096c]"],
+.dark [class*="from-[#ff9e00]"] a,
+.dark [class*="from-[#ff9e00]"] svg {
+  color: #1a0030 !important;
+}
+
+.dark [class*="from-[#ff9e00]"] [class*="border-[#3c096c]"] {
+  border-color: rgba(26, 0, 48, 0.3) !important;
+}
+
+.dark [class*="from-[#ff9e00]"] [class*="hover:bg-[#3c096c]"]:hover {
+  background-color: rgba(26, 0, 48, 0.08) !important;
+}
+
+/* 11. Table Element Dark Mode Adjustments for Clean High Contrast */
+.dark table {
+  border-color: #27272a !important;
+}
+
+.dark thead {
+  background-color: #18181b !important;
+}
+
+.dark th {
+  color: #ffffff !important;
+  border-color: #27272a !important;
+}
+
+.dark td {
+  border-color: #27272a !important;
+}
+
+.dark tr {
+  border-color: #27272a !important;
+}
+
+.dark .hover\:bg-gray-50\/50:hover,
+.dark [class*="hover:bg-gray-50/50"]:hover {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+/* 12. Matte Obsidian Nav Bar Adjustment in Dark Mode */
+.dark nav {
+  background-color: #18181b !important;
+  border: 1.5px solid #27272a !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+}
+
+.dark nav * {
+  border-color: #27272a !important;
+}
+
+.dark [class*="bg-[#140828]"] {
+  background-color: #18181b !important;
+  border-color: #27272a !important;
+}
+
+.dark [class*="bg-[#120723]"] {
+  background-color: #18181b !important;
+  border-color: #27272a !important;
+}
+
+.dark [class*="bg-linear-to-r"][class*="from-[#3c096c]"] {
+  background-image: none !important;
+  background-color: #27272a !important;
+}
+
+.dark [class*="from-[#3c096c]"][class*="to-[#5a189a]"] {
+  background-image: none !important;
+  background-color: #27272a !important;
+}
+
+.dark [class*="text-[#e0aaff]"] {
+  color: #a1a1aa !important;
+}
+
+/* 13. Sleek Dark Mode Shadows (Muffle all white/grey glows to subtle deep obsidian shadows) */
+.dark [class*=" shadow-"],
+.dark [class^="shadow-"],
+.dark [class*="hover:shadow-"],
+.dark [class*="focus:shadow-"],
+.dark .shadow-sm,
+.dark .shadow,
+.dark .shadow-md,
+.dark .shadow-lg,
+.dark .shadow-xl,
+.dark .shadow-2xl,
+.dark [class*="hover:shadow-"]:hover {
+  --tw-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.45), 0 4px 6px -4px rgba(0, 0, 0, 0.45) !important;
+  --tw-shadow-colored: 0 10px 15px -3px rgba(0, 0, 0, 0.45), 0 4px 6px -4px rgba(0, 0, 0, 0.45) !important;
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow) !important;
+}
+
+/* Explicitly override light gray/white hover shadows in dark mode to keep them pure carbon black */
+.dark [class*="hover:shadow-gray-"],
+.dark [class*="hover:shadow-slate-"],
+.dark [class*="hover:shadow-zinc-"],
+.dark [class*="hover:shadow-white"] {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.55), 0 8px 10px -6px rgba(0, 0, 0, 0.55) !important;
+}
+
+/* 14. PC Grid Selection Styling in dark mode */
+.dark button[disabled],
+.dark [class*="bg-red-50/30"],
+.dark [class*="bg-gray-50"][class*="cursor-not-allowed"] {
+  background-color: #121214 !important;
+  border-color: #27272a !important;
+  color: #3f3f46 !important;
+}
+
+.dark button[disabled] svg,
+.dark button[disabled] span,
+.dark [class*="bg-red-50/30"] svg,
+.dark [class*="bg-red-50/30"] span,
+.dark [class*="bg-gray-50"][class*="cursor-not-allowed"] svg,
+.dark [class*="bg-gray-50"][class*="cursor-not-allowed"] span,
+.dark [class*="text-red-100"],
+.dark [class*="text-red-200"],
+.dark [class*="text-gray-300"][class*="cursor-not-allowed"] {
+  color: #3f3f46 !important;
+}
+
+.dark button.text-gray-600.border-gray-100,
+.dark button[class*="text-gray-600"][class*="border-gray-100"] {
+  border-color: #27272a !important;
+  color: #e4e4e7 !important;
+}
+
+.dark button.text-gray-600.border-gray-100 svg,
+.dark button[class*="text-gray-600"][class*="border-gray-100"] svg {
+  color: #a1a1aa !important;
+}
+
+.dark button.text-gray-600.border-gray-100:hover,
+.dark button[class*="text-gray-600"][class*="border-gray-100"]:hover {
+  background-color: #27272a !important;
+  border-color: #3f3f46 !important;
+  color: #ffffff !important;
+}
+
+.dark button.text-gray-600.border-gray-100:hover svg,
+.dark button[class*="text-gray-600"][class*="border-gray-100"]:hover svg {
+  color: #ffffff !important;
+}
+
+/* Selected active PC: Stark white highlight with dark text */
+.dark [class*="bg-[#3c096c]/10"][class*="border-[#3c096c]"] {
+  background-color: #ffffff !important;
+  border-color: #ffffff !important;
+  color: #09090b !important;
+}
+
+.dark [class*="bg-[#3c096c]/10"][class*="border-[#3c096c]"] svg {
+  color: #09090b !important;
+}
+
+.dark [class*="bg-[#3c096c]/10"][class*="border-[#3c096c]"] span {
+  color: #09090b !important;
+}
+
+/* Override selection ring color to crisp premium white in dark mode */
+.dark [class*="ring-[#9d4edd]"] {
+  --tw-ring-color: #ffffff !important;
+}
+
+/* Reserved slots: Elegant graphite carbon backgrounds */
+.dark [class*="bg-[#5a189a]/10"] {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.dark [class*="bg-[#5a189a]/10"] svg {
+  color: #71717a !important;
+}
+
+.dark [class*="bg-[#5a189a]/10"] span {
+  color: #a1a1aa !important;
+}
+
+/* Direct bg-[#5a189a] (approved bookings): Sleek dark carbon zinc */
+.dark [class*="bg-[#5a189a]"] {
+  background-color: #27272a !important;
+  border-color: #3f3f46 !important;
+}
+
+/* Text overrides for reserved purple classes to crisp silver-gray for dark mode contrast */
+.dark [class*="text-[#5a189a]"] {
+  color: #a1a1aa !important;
+}
+
+/* Selected ring offset in dark mode */
+.dark .ring-offset-2 {
+  --tw-ring-offset-color: #09090b !important;
+}
+
+/* 15. Standard "Reserved Slot" Badge inside Booking schedule list: Sleek Graphite */
+.dark [class*="bg-purple-50"][class*="text-[#3c096c]"] {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #a1a1aa !important;
+}
+
+/* 16. Standard Green Text Overrides in Dark Mode (e.g. Free lab counts, success alerts) */
+.dark .text-green-500 {
+  color: #4ade80 !important;
+}
+
+.dark .text-green-600 {
+  color: #4ade80 !important;
+}
+
+/* 17. Exempt semi-transparent orange/amber badges from the dark purple override in dark mode */
+.dark [class*="bg-[#ff9100]/10"] {
+  background-color: rgba(255, 145, 0, 0.1) !important;
+}
+
+.dark [class*="bg-[#ff9100]/10"] *,
+.dark [class*="bg-[#ff9100]/10"][class*="text-"],
+.dark [class*="bg-[#ff9e00]/10"] *,
+.dark [class*="bg-[#ff9e00]/10"][class*="text-"] {
+  color: #ff9100 !important;
+}
+
+/* 18. PC Grid: Sleek, low-profile dark red styling for Disabled Workstations in Dark Mode */
+.dark [class*="bg-red-50/50"] {
+  background-color: #0f0f11 !important;
+  border-color: rgba(239, 68, 68, 0.15) !important;
+  color: rgba(239, 68, 68, 0.45) !important;
+}
+
+.dark [class*="bg-red-50/50"] svg,
+.dark [class*="bg-red-50/50"] span,
+.dark [class*="bg-red-50/50"] p,
+.dark [class*="bg-red-50/50"] * {
+  color: rgba(239, 68, 68, 0.45) !important;
+}
+
+.dark [class*="bg-red-50/50"] [class*="bg-red-400"],
+.dark [class*="bg-red-50/50"] div {
+  background-color: rgba(239, 68, 68, 0.45) !important;
+}
+
+/* 19. Ensure signature orange/amber text is bright glowing orange in dark mode */
+.dark .text-\[\#ff9100\],
+.dark [class^="text-[#ff9100]"],
+.dark [class*=" text-[#ff9100]"],
+.dark .text-\[\#ff9e00\],
+.dark [class^="text-[#ff9e00]"],
+.dark [class*=" text-[#ff9e00]"] {
+  color: #ff9100 !important;
+}
+
+/* Premium Glassmorphic Toast Animations */
+@keyframes slideInRight {
+  from {
+    transform: translateX(120%) scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes toastProgress {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-toast-progress {
+  animation: toastProgress 5s linear forwards;
+}
+
+/* Premium Page and Modal Opening Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInFromBottom {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes zoomIn {
+  from {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Page entrance */
+.animate-page-entrance {
+  animation: slideInFromBottom 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+/* Staggered column load transitions */
+.animate-column-1 {
+  animation: slideInFromBottom 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.08s forwards;
+  opacity: 0;
+}
+.animate-column-2 {
+  animation: slideInFromBottom 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.16s forwards;
+  opacity: 0;
+}
+.animate-column-3 {
+  animation: slideInFromBottom 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.24s forwards;
+  opacity: 0;
+}
+
+/* Modal Backdrops */
+.animate-backdrop-fade {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+/* Modals Content */
+.animate-modal-scale {
+  animation: zoomIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  opacity: 0;
+}
+
+/* Custom slide-in animations for login/signup pages */
+@keyframes slideInLeftPanel {
+  from {
+    transform: translateX(-100px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRightPanel {
+  from {
+    transform: translateX(100px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-left {
+  animation: slideInLeftPanel 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+.animate-slide-right {
+  animation: slideInRightPanel 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
 }

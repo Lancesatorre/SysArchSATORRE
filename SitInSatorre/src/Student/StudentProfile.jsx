@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { authService } from '../services/authService'
 import { useNavigate } from 'react-router-dom'
+import LoadingScreen from '../components/LoadingScreen'
 
 // ── Icons ──────────────────────────────────────────────
 const Ico = ({ d, d2, extra = '' }) => (
@@ -81,13 +82,6 @@ export default function StudentProfile() {
   const [photoPreview, setPhotoPreview]   = useState(null)
   const [photoDragging, setPhotoDragging] = useState(false)
   const [savingLoading, setSavingLoading] = useState(false)
-  const [profileStats, setProfileStats]   = useState({
-    total_sessions: 0,
-    this_month: 0,
-    hours_logged: 0,
-    avg_per_week: 0,
-    lab_usage: [],
-  })
 
   useEffect(() => {
     const u = authService.getUser?.() || {}
@@ -103,36 +97,14 @@ export default function StudentProfile() {
       id_number:   u.id_number   || '',
       role:        u.role        || 'student',
       photo:       u.photo || u.profile_picture || null,
+      password:    '',
+      confirmPassword: '',
     }
     setUser(data); setFormData(data); setLoading(false)
     if (data.photo) setPhotoPreview(data.photo)
   }, [navigate])
 
-  useEffect(() => {
-    const idNumber = user?.id_number
-    if (!idNumber) return
 
-    ;(async () => {
-      try {
-        const stats = await authService.fetchStudentProfileStats(idNumber)
-        setProfileStats({
-          total_sessions: Number(stats.total_sessions || 0),
-          this_month: Number(stats.this_month || 0),
-          hours_logged: Number(stats.hours_logged || 0),
-          avg_per_week: Number(stats.avg_per_week || 0),
-          lab_usage: Array.isArray(stats.lab_usage) ? stats.lab_usage : [],
-        })
-      } catch {
-        setProfileStats({
-          total_sessions: 0,
-          this_month: 0,
-          hours_logged: 0,
-          avg_per_week: 0,
-          lab_usage: [],
-        })
-      }
-    })()
-  }, [user?.id_number])
 
   const onChange = (name, val) => setFormData(p => ({ ...p, [name]: val }))
   const handlePhotoFile = (file) => {
@@ -150,30 +122,59 @@ export default function StudentProfile() {
   const handleSave = async () => {
     try {
       setSaveError(''); setSavingLoading(true)
+
+      // Email Validation
+      if (formData.email) {
+        if (!formData.email.trim()) {
+          setSaveError('Email Address cannot be empty');
+          setSavingLoading(false);
+          return;
+        }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email.trim())) {
+          setSaveError('Invalid email address format');
+          setSavingLoading(false);
+          return;
+        }
+      }
+
+      // Password Validation
+      if (formData.password || formData.confirmPassword) {
+        if (formData.password !== formData.confirmPassword) {
+          setSaveError('Passwords do not match');
+          setSavingLoading(false);
+          return;
+        }
+        if (formData.password.length < 6) {
+          setSaveError('Password must be at least 6 characters long');
+          setSavingLoading(false);
+          return;
+        }
+      }
+
       const response = await authService.updateProfile({
-        idNumber: user.id_number, firstName: formData.first_name,
-        lastName: formData.last_name, middleName: formData.middle_name,
-        address: formData.address, photo: photoPreview,
+        idNumber: user.id_number,
+        firstName: formData.first_name,
+        lastName: formData.last_name,
+        middleName: formData.middle_name,
+        address: formData.address,
+        photo: photoPreview,
+        email: formData.email,
+        password: formData.password || "",
       })
       const updated = response?.user ? { ...user, ...response.user, photo: photoPreview } : { ...formData, photo: photoPreview }
-      setUser(updated); setFormData(updated)
+      const updatedWithNoPassword = { ...updated, password: '', confirmPassword: '' }
+      setUser(updated); setFormData(updatedWithNoPassword)
       setEditing(false); setSaved(true)
       setTimeout(() => setSaved(false), 2500)
     } catch (err) {
       setSaveError(err.message || 'Failed to save profile changes')
     } finally { setSavingLoading(false) }
   }
-  const handleCancel = () => { setFormData(user); setPhotoPreview(user?.photo||null); setEditing(false) }
-  const hasChanges = ['first_name','last_name','middle_name','address'].some(k=>(formData?.[k]??'')!==(user?.[k]??'')) || photoPreview!==(user?.photo||null)
+  const handleCancel = () => { setFormData({ ...user, password: '', confirmPassword: '' }); setPhotoPreview(user?.photo||null); setEditing(false) }
+  const hasChanges = ['first_name','last_name','middle_name','address','email'].some(k=>(formData?.[k]??'')!==(user?.[k]??'')) || photoPreview!==(user?.photo||null) || (formData.password && formData.password !== '')
 
-  if (loading) return (
-    <div className="min-h-[85vh] flex items-center justify-center">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-10 h-10 rounded-full border-4 border-[#3c096c]/20 border-t-[#3c096c] animate-spin"/>
-        <p className="text-sm font-semibold text-gray-400">Loading profile...</p>
-      </div>
-    </div>
-  )
+  if (loading) return <LoadingScreen message="Loading profile..." />
   if (!user) return <div className="min-h-[85vh] flex items-center justify-center"><p className="text-sm font-semibold text-red-500">Error loading profile.</p></div>
 
   const displayName = `${user.first_name} ${user.last_name}`.trim()
@@ -314,16 +315,47 @@ export default function StudentProfile() {
             {/* Contact */}
             <Section icon={<IcoMail e="text-[#3c096c]"/>} title="Contact Information" editing={isEditing}>
               <div className="grid grid-cols-2 gap-5">
-                <div className="flex flex-col gap-1.5">
-                  <p className="text-[0.6rem] font-black uppercase tracking-[0.15em] text-gray-400">Email Address</p>
-                  <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
-                    <IcoMail e="w-3.5 h-3.5 text-gray-400 flex-shrink-0"/>
-                    <span className="text-sm font-semibold text-gray-500 truncate">{user.email||'—'}</span>
-                    <span className="ml-auto text-[0.55rem] font-bold text-gray-400 bg-white border border-gray-200 px-2 py-0.5 rounded-full flex-shrink-0">locked</span>
-                  </div>
-                </div>
+                <Field label="Email Address" value={user.email} name="email" editing={isEditing} formData={formData} onChange={onChange} icon={<IcoMail e="w-3.5 h-3.5 text-gray-500"/>}/>
                 <Field label="Address" value={user.address} name="address" editing={isEditing} formData={formData} onChange={onChange} icon={<IcoPin e="w-3.5 h-3.5 text-gray-500"/>}/>
               </div>
+            </Section>
+
+            {/* Security */}
+            <Section icon={<IcoShield e="text-[#3c096c]"/>} title="Security & Password" editing={isEditing}>
+              {isEditing ? (
+                <div className="grid grid-cols-2 gap-5">
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-[0.6rem] font-black uppercase tracking-[0.15em] text-gray-400">New Password</p>
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-35">
+                        <IcoShield e="w-3.5 h-3.5 text-gray-500"/>
+                      </div>
+                      <input type="password" placeholder="Leave blank to keep current" value={formData.password||''} onChange={e=>onChange('password',e.target.value)}
+                        className="w-full bg-white border-2 border-gray-100 rounded-xl py-2.5 text-sm font-semibold text-gray-700 focus:outline-none focus:border-[#3c096c] transition-all shadow-sm pl-9 pr-3"/>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-[0.6rem] font-black uppercase tracking-[0.15em] text-gray-400">Confirm Password</p>
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-35">
+                        <IcoShield e="w-3.5 h-3.5 text-gray-500"/>
+                      </div>
+                      <input type="password" placeholder="Confirm new password" value={formData.confirmPassword||''} onChange={e=>onChange('confirmPassword',e.target.value)}
+                        className="w-full bg-white border-2 border-gray-100 rounded-xl py-2.5 text-sm font-semibold text-gray-700 focus:outline-none focus:border-[#3c096c] transition-all shadow-sm pl-9 pr-3"/>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-5">
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-[0.6rem] font-black uppercase tracking-[0.15em] text-gray-400">Password</p>
+                    <div className="flex items-center gap-2">
+                      <IcoShield e="w-3.5 h-3.5 text-gray-400"/>
+                      <p className="text-sm font-semibold text-gray-700">••••••••••••</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </Section>
 
             {/* Additional */}
@@ -345,58 +377,7 @@ export default function StudentProfile() {
               </div>
             </Section>
 
-            {/* ── Quick stats bento ── */}
-            <div className="grid grid-cols-2 gap-4">
-              {/* Sit-in activity summary */}
-              <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-                <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-50">
-                  <div className="w-8 h-8 rounded-xl bg-[#3c096c]/08 flex items-center justify-center">
-                    <IcoActivity e="text-[#3c096c]"/>
-                  </div>
-                  <h3 className="font-black text-[#1a0030] text-sm">Sit-in Activity</h3>
-                </div>
-                <div className="px-6 py-5 grid grid-cols-2 gap-4">
-                  {[
-                    { label:'Total Sessions', value:String(profileStats.total_sessions), color:'text-[#3c096c]' },
-                    { label:'This Month',     value:String(profileStats.this_month),      color:'text-[#ff9100]' },
-                    { label:'Hours Logged',   value:String(profileStats.hours_logged),    color:'text-[#3c096c]' },
-                    { label:'Avg / Week',     value:String(profileStats.avg_per_week),    color:'text-[#ff9100]' },
-                  ].map(({ label, value, color }) => (
-                    <div key={label}>
-                      <p className="text-[0.58rem] font-black uppercase tracking-widest text-gray-400 mb-1">{label}</p>
-                      <p className={`text-2xl font-black ${color}`}>{value}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
 
-              {/* Lab usage */}
-              <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-                <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-50">
-                  <div className="w-8 h-8 rounded-xl bg-[#ff9100]/10 flex items-center justify-center">
-                    <IcoMonitor e="text-[#ff9100]"/>
-                  </div>
-                  <h3 className="font-black text-[#1a0030] text-sm">Lab Usage</h3>
-                </div>
-                <div className="px-6 py-5 flex flex-col gap-3">
-                  {profileStats.lab_usage.length === 0 ? (
-                    <p className="text-xs font-semibold text-gray-400">No lab usage yet.</p>
-                  ) : (
-                    profileStats.lab_usage.map(({ lab, pct }) => (
-                      <div key={lab}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-bold text-gray-600">{lab}</span>
-                          <span className="text-xs font-black text-[#3c096c]">{pct}%</span>
-                        </div>
-                        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-gradient-to-r from-[#3c096c] to-[#ff9100] rounded-full transition-all" style={{ width:`${pct}%` }}/>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
 
           </div>
         </div>

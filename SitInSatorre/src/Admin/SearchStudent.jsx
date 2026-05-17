@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authService } from '../services/authService'
+import LoadingScreen from '../components/LoadingScreen'
 
 // ── Icons ──────────────────────────────────────────────
 const Ico = ({ d, d2, cls = 'w-4 h-4' }) => (
@@ -21,7 +22,8 @@ const IcoLab     = ({ cls='w-4 h-4' }) => <Ico cls={cls} d="M9 3v6l-5 9a2 2 0 00
 const IcoBook    = ({ cls='w-4 h-4' }) => <Ico cls={cls} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
 const IcoChevron = ({ cls='w-4 h-4' }) => <Ico cls={cls} d="M19 9l-7 7-7-7"/>
 
-const ROOM_OPTIONS = ['524', '526', '528', '530', '544', '542']
+const ROOM_OPTIONS = ['Lab 524', 'Lab 526', 'Lab 528', 'Lab 530', 'Lab 544', 'Lab 542']
+const PC_OPTIONS = Array.from({ length: 50 }, (_, i) => `PC-${i + 1}`)
 const PURPOSE_OPTIONS = [
   'Java Programming',
   'C Programming',
@@ -34,7 +36,7 @@ const PURPOSE_OPTIONS = [
 ]
 const PAGE_SIZE = 8
 
-const initialSitInModal = { open: false, student: null, room: '', purpose: '' }
+const initialSitInModal = { open: false, student: null, room: '', purpose: '', pcNumber: '' }
 const initialEditModal  = { open: false, student: null, first_name:'', last_name:'', middle_name:'', course:'', year_level:'', address:'', available_sessions:'' }
 
 // ── Avatar: shows profile_picture if available, else initials ──
@@ -88,9 +90,9 @@ function Modal({ title, subtitle, icon, onClose, children, footer }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="absolute inset-0 bg-[#1a0030]/60 backdrop-blur-sm"/>
-      <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl shadow-[#3c096c]/25 overflow-hidden">
-        <div className="h-1 w-full bg-gradient-to-r from-[#ff9100] via-violet-400 to-[#3c096c]"/>
-        <div className="flex items-start justify-between px-6 pt-5 pb-4 border-b border-gray-50">
+      <div className="relative w-full max-w-lg bg-white dark:bg-[#18181b] dark:border dark:border-[#27272a] rounded-2xl shadow-2xl shadow-[#3c096c]/25">
+        <div className="h-1 w-full bg-gradient-to-r from-[#ff9100] via-violet-400 to-[#3c096c] rounded-t-2xl"/>
+        <div className="flex items-start justify-between px-6 pt-5 pb-4 border-b border-gray-50 dark:border-zinc-800">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-[#3c096c]/08 flex items-center justify-center flex-shrink-0">
               {icon}
@@ -152,6 +154,8 @@ export default function SearchStudent() {
   const [keyword, setKeyword]   = useState('')
   const [students, setStudents] = useState([])
   const [activeSessionIds, setActiveSessionIds] = useState(new Set())
+  const [activeSessions, setActiveSessions] = useState([])
+  const [pcDropdownOpen, setPcDropdownOpen] = useState(false)
   const [error, setError]       = useState('')
   const [success, setSuccess]   = useState('')
   const [page, setPage]         = useState(1)
@@ -167,6 +171,7 @@ export default function SearchStudent() {
 
   const loadActiveSessions = async () => {
     const sessions = await authService.adminCurrentSessions()
+    setActiveSessions(sessions || [])
     const activeIds = new Set((sessions || []).map((s) => String(s.student_id_number || '')))
     setActiveSessionIds(activeIds)
   }
@@ -268,24 +273,22 @@ export default function SearchStudent() {
       setSitInModal(initialSitInModal)
       return
     }
-    if (!sitInModal.room.trim() || !sitInModal.purpose.trim()) {
-      setError('Room and purpose are required.'); return
+    if (!sitInModal.room.trim() || !sitInModal.purpose.trim() || !sitInModal.pcNumber.trim()) {
+      setError('Room, PC number and purpose are required.'); return
     }
     await withBusy(async () => {
-      await authService.adminStartSession(sitInModal.student.id_number, sitInModal.room.trim(), sitInModal.purpose.trim())
+      await authService.adminStartSession(
+        sitInModal.student.id_number, 
+        sitInModal.room.trim(), 
+        sitInModal.purpose.trim(),
+        sitInModal.pcNumber.trim()
+      )
       setSitInModal(initialSitInModal)
       await loadData()
     }, `Sit-in started for ${sitInModal.student.id_number}.`)
   }
 
-  if (loading) return (
-    <div className="min-h-[70vh] flex items-center justify-center">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-10 h-10 rounded-full border-4 border-[#3c096c]/20 border-t-[#3c096c] animate-spin"/>
-        <p className="text-sm font-semibold text-gray-400">Loading students...</p>
-      </div>
-    </div>
-  )
+  if (loading) return <LoadingScreen message="Loading students..." />
 
   return (
     <div className="py-6 px-2">
@@ -432,7 +435,7 @@ export default function SearchStudent() {
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 disabled:opacity-50 transition-colors">
                           <IcoTrash cls="w-3.5 h-3.5"/> Delete
                         </button>
-                        <button onClick={()=>setSitInModal({open:true,student:s,room:'',purpose:''})}
+                        <button onClick={()=>setSitInModal({open:true,student:s,room:'',purpose:'',pcNumber:''})}
                           disabled={busy || Number(s.available_sessions) <= 0 || hasActiveSession}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#ff9100] text-white text-xs font-bold hover:bg-orange-400 shadow-sm shadow-[#ff9100]/25 hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0 transition-all">
                           <IcoPlay cls="w-3.5 h-3.5"/> Initiate Sit-in
@@ -484,8 +487,11 @@ export default function SearchStudent() {
                 className="px-5 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-500 hover:bg-gray-50 transition-colors">
                 Cancel
               </button>
-              <button onClick={handleInitiateSitIn} disabled={busy}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#ff9100] text-white text-sm font-bold hover:bg-orange-400 shadow-md shadow-[#ff9100]/25 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:translate-y-0">
+              <button
+                onClick={handleInitiateSitIn}
+                disabled={busy || !sitInModal.room.trim() || !sitInModal.pcNumber.trim() || !sitInModal.purpose.trim()}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#ff9100] text-white text-sm font-bold hover:bg-orange-400 shadow-md shadow-[#ff9100]/25 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:translate-y-0 disabled:cursor-not-allowed"
+              >
                 <IcoPlay cls="w-3.5 h-3.5 text-white"/>
                 {busy ? 'Starting...' : 'Start Sit-in'}
               </button>
@@ -514,12 +520,12 @@ export default function SearchStudent() {
                   </span>
                   <select
                     value={sitInModal.room}
-                    onChange={e=>setSitInModal(p=>({...p,room:e.target.value}))}
+                    onChange={e=>setSitInModal(p=>({...p,room:e.target.value, pcNumber: ''}))}
                     className="w-full appearance-none bg-gray-50 border-2 border-gray-100 rounded-xl pl-10 pr-10 py-2.5 text-sm font-semibold text-gray-700 focus:outline-none focus:border-[#3c096c] focus:bg-white transition-all"
                   >
                     <option value="">Select room</option>
                     {ROOM_OPTIONS.map(room => (
-                      <option key={room} value={room}>Lab {room}</option>
+                      <option key={room} value={room}>{room}</option>
                     ))}
                   </select>
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
@@ -529,6 +535,73 @@ export default function SearchStudent() {
               </div>
 
               <div className="flex flex-col gap-1.5">
+                <label className="text-[0.6rem] font-black uppercase tracking-[0.14em] text-gray-400">PC Number</label>
+                <div className="relative group">
+                  <button
+                    type="button"
+                    disabled={!sitInModal.room}
+                    onClick={() => setPcDropdownOpen(!pcDropdownOpen)}
+                    className={`w-full flex items-center justify-between border-2 rounded-xl pl-10 pr-4 py-2.5 text-sm font-semibold transition-all text-left relative
+                      ${!sitInModal.room 
+                        ? 'bg-gray-100/50 border-gray-100/50 text-gray-400 cursor-not-allowed dark:bg-[#121214] dark:border-zinc-900/50 dark:text-zinc-600' 
+                        : 'bg-gray-50 border-gray-100 dark:bg-[#18181b] dark:border-zinc-800 text-gray-700 dark:text-zinc-200 focus:border-[#3c096c] focus:outline-none'
+                      }`}
+                  >
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <IcoLab cls={`w-4 h-4 transition-colors ${!sitInModal.room ? 'text-gray-300 dark:text-zinc-700' : 'text-[#3c096c]/45 group-focus-within:text-[#3c096c]'}`} />
+                    </span>
+                    <span>{!sitInModal.room ? 'Select room first' : (sitInModal.pcNumber || 'Select PC')}</span>
+                    <IcoChevron cls={`w-4 h-4 text-gray-400 transition-transform ${pcDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Dropdown Menu - strictly opens below! */}
+                  {pcDropdownOpen && (
+                    <>
+                      {/* Backdrop for easy closing */}
+                      <div className="fixed inset-0 z-10" onClick={() => setPcDropdownOpen(false)}/>
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-[#18181b] border-2 border-gray-100 dark:border-zinc-800 rounded-xl shadow-xl z-20 max-h-56 overflow-y-auto py-1">
+                        <button
+                          type="button"
+                          onClick={() => { setSitInModal(p=>({...p, pcNumber: ''})); setPcDropdownOpen(false); }}
+                          className="w-full text-left px-4 py-2 text-sm font-semibold text-gray-400 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+                        >
+                          Select PC
+                        </button>
+                        {PC_OPTIONS.map(pc => {
+                          const isOccupied = activeSessions.some(
+                            s => s.room === sitInModal.room && s.pc_number === pc
+                          );
+                          return (
+                            <button
+                              key={pc}
+                              type="button"
+                              disabled={isOccupied}
+                              onClick={() => {
+                                setSitInModal(p => ({ ...p, pcNumber: pc }));
+                                setPcDropdownOpen(false);
+                              }}
+                              className={`w-full text-left px-4 py-2 text-sm font-semibold transition-colors flex items-center justify-between
+                                ${isOccupied 
+                                  ? 'text-red-400 dark:text-red-500/50 bg-red-50/10 dark:bg-red-950/10 cursor-not-allowed opacity-60' 
+                                  : 'text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-zinc-800'
+                                }`}
+                            >
+                              <span>{pc}</span>
+                              {isOccupied && (
+                                <span className="text-[0.6rem] font-black uppercase tracking-wider text-red-500 bg-red-100/50 dark:bg-red-950/30 px-1.5 py-0.5 rounded-md">
+                                  Occupied
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5 md:col-span-2">
                 <label className="text-[0.6rem] font-black uppercase tracking-[0.14em] text-gray-400">Purpose</label>
                 <div className="relative group">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">

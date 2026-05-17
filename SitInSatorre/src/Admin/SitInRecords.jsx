@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authService } from '../services/authService'
+import LoadingScreen from '../components/LoadingScreen'
 
 const Ico = ({ d, d2, cls = 'w-4 h-4' }) => (
   <svg className={cls} fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
@@ -85,14 +86,7 @@ export default function SitInRecords() {
     setPage((prev) => Math.min(prev, totalPages))
   }, [totalPages])
 
-  if (loading) return (
-    <div className="min-h-[70vh] flex items-center justify-center">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-10 h-10 rounded-full border-4 border-[#3c096c]/20 border-t-[#3c096c] animate-spin" />
-        <p className="text-sm font-semibold text-gray-400">Loading records...</p>
-      </div>
-    </div>
-  )
+  if (loading) return <LoadingScreen message="Loading records..." />
 
   return (
     <div className="py-6 px-2 min-h-auto">
@@ -145,7 +139,7 @@ export default function SitInRecords() {
             <table className="w-full min-w-225 text-sm">
               <thead>
                 <tr>
-                  {['Record ID', 'Session ID', 'Student', 'Room', 'Purpose', 'Started', 'Ended', 'Duration', 'Ended By'].map(h => (
+                  {['Record ID', 'Session ID', 'Student', 'Room', 'PC No.', 'Purpose', 'Started', 'Ended', 'Duration', 'Ended By'].map(h => (
                     <th
                       key={h}
                       className="text-left px-5 py-3.5 text-[0.6rem] font-black uppercase tracking-[0.14em] text-gray-400 bg-gray-50 border-b border-gray-100 whitespace-nowrap"
@@ -158,7 +152,7 @@ export default function SitInRecords() {
               <tbody>
                 {filteredRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-5 py-12 text-center">
+                    <td colSpan={10} className="px-5 py-12 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <IcoClipboard cls="w-8 h-8 text-gray-200" />
                         <p className="text-sm text-gray-400 font-medium">
@@ -205,6 +199,17 @@ export default function SitInRecords() {
                         ? <span className="text-xs font-bold text-[#3c096c] bg-[#3c096c]/08 border border-[#3c096c]/15 px-2 py-0.5 rounded-full">{r.room}</span>
                         : <span className="text-xs text-gray-400">—</span>
                       }
+                    </td>
+
+                    {/* PC No */}
+                    <td className="px-5 py-3.5 border-b border-gray-50">
+                      {r.pc_number ? (
+                        <span className="bg-gray-100 text-gray-700 px-2.5 py-0.5 rounded-lg border border-gray-150 text-xs font-semibold">
+                          {r.pc_number.replace('PC-', '')}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-xs font-semibold">—</span>
+                      )}
                     </td>
 
                     {/* Purpose */}

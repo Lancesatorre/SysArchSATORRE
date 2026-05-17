@@ -18,7 +18,7 @@ if ($action === 'adminEndSession' && $request_method === 'POST') {
 
     $db->begin_transaction();
     try {
-        $session_query = "SELECT s.id, s.student_id, s.student_id_number, s.room, s.purpose, s.started_at,
+        $session_query = "SELECT s.id, s.student_id, s.student_id_number, s.room, s.purpose, s.started_at, s.pc_number,
                                  st.available_sessions
                           FROM sit_in_sessions s
                           INNER JOIN students st ON st.id = s.student_id
@@ -50,9 +50,9 @@ if ($action === 'adminEndSession' && $request_method === 'POST') {
         }
 
         $record_query = "INSERT INTO sit_in_records
-                        (session_id, student_id, student_id_number, room, purpose, started_at, ended_at, duration_minutes, ended_by)
+                        (session_id, student_id, student_id_number, room, purpose, pc_number, started_at, ended_at, duration_minutes, ended_by)
                         VALUES
-                        ($session_id, {$session['student_id']}, '{$session['student_id_number']}', '{$session['room']}', '{$session['purpose']}', '{$session['started_at']}', NOW(),
+                        ($session_id, {$session['student_id']}, '{$session['student_id_number']}', '{$session['room']}', '{$session['purpose']}', " . ($session['pc_number'] ? "'" . $db->real_escape_string($session['pc_number']) . "'" : "NULL") . ", '{$session['started_at']}', NOW(),
                          TIMESTAMPDIFF(MINUTE, '{$session['started_at']}', NOW()), '" . ADMIN_ID . "')";
         if (!$db->query($record_query)) {
             throw new Exception('Failed to write sit-in record');

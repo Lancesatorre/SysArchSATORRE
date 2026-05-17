@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom';
 import ccsLogo from '../assets/ccsmainlogo.png';
 import { authService } from '../services/authService';
-import LoadingOverlay from '../Components/LoadingOverlay';
+import LoadingScreen from '../components/LoadingScreen';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -24,8 +24,8 @@ export default function LoginPage() {
   const getInputClass = (field) => {
     const hasError = highlightAllFields || (field === 'password' && passwordError);
     const colorClasses = hasError
-      ? 'border border-red-500 focus:border-red-500 focus:ring-red-500'
-      : 'border border-gray-200 focus:border-[#9d4edd] focus:ring-[#9d4edd]';
+      ? 'border-2 border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 text-red-900 bg-red-50/30'
+      : 'border border-gray-200 focus:border-[#3c096c] focus:ring-2 focus:ring-[#3c096c]/20';
     return `${baseInputClass} ${colorClasses}`;
   };
 
@@ -68,32 +68,36 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br flex flex-row-2 from-gray-400 to-white">
-      {loading && <LoadingOverlay message="Logging in..." />}
+    <div className="min-h-screen bg-linear-to-br flex flex-row-2 from-gray-400 to-white relative overflow-hidden">
+      {loading && (
+        <div className="fixed inset-0 bg-white/75 backdrop-blur-md z-50 flex items-center justify-center animate-fade-in">
+          <LoadingScreen message="Logging in..." />
+        </div>
+      )}
 
       {/* Left panel */}
-      <div className="bg-linear-to-br grid  rounded-r-full shadow-[10px_0px_15px_-5px_rgba(0,0,0,0.3)] items-start justify-center from-[#ff9e00] to-[#3c096c] w-[60%] pr-35">
-        <div className=' flex justify-start items-start mt-7'>
-           <Link
-          to="/"
-          className="flex items-center gap-2 text-sm font-semibold text-[#3c096c] border-2 border-[#3c096c]/25 px-4 py-2 rounded-full hover:border-[#3c096c] hover:bg-[#3c096c]/5 hover:text-[#3c096c] transition duration-300"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Back to Home
-        </Link>
+      <div className="bg-linear-to-br grid rounded-r-full shadow-[10px_0px_15px_-5px_rgba(0,0,0,0.3)] items-start justify-center from-[#ff9e00] to-[#3c096c] w-[60%] pr-35 animate-slide-left">
+        <div className='flex justify-start items-start mt-7'>
+          <Link
+            to="/"
+            className="flex items-center gap-2 text-sm font-semibold text-[#3c096c] border-2 border-[#3c096c]/25 px-4 py-2 rounded-full hover:border-[#3c096c] hover:bg-[#3c096c]/5 hover:text-[#3c096c] transition duration-300"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Home
+          </Link>
 
         </div>
         <div className="flex justify-start items-start mb-20">
-          <div className='flex justify-center items-center  gap-10'>
-              <img src={ccsLogo} alt="CCS Logo" className="rounded-[10vh] h-[35vh] w-[35vh] shadow-xl border-2 border-[#240046]" />
-              <div className="flex flex-col gap-2">
-            <span className="text-white text-6xl font-black tracking-widest drop-shadow-lg">Sit-inIT</span>
-            <span className="text-2xl text-[#ff8500] font-bold">College of Computer Studies Sit-in <br /> Monitoring System</span>
+          <div className='flex justify-center items-center gap-10'>
+            <img src={ccsLogo} alt="CCS Logo" className="rounded-[10vh] h-[35vh] w-[35vh] shadow-xl border-2 border-[#240046]" />
+            <div className="flex flex-col gap-2">
+              <span className="text-white text-6xl font-black tracking-widest drop-shadow-lg">Sit-inIT</span>
+              <span className="text-2xl text-[#ff8500] font-bold">College of Computer Studies Sit-in <br /> Monitoring System</span>
+            </div>
           </div>
-          </div>
-        
+
         </div>
       </div>
 
@@ -118,7 +122,7 @@ export default function LoginPage() {
               value={credentials.password} onChange={handleChange}
               className={getInputClass('password')} placeholder="••••••••"
             />
-            {(passwordError || error) && <p className="text-xs text-red-600 mt-1">{passwordError || error}</p>}
+            {(passwordError || error) && <span className="block text-xs mt-1.5 animate-fadeIn" style={{ color: '#ef4444' }}>{passwordError || error}</span>}
 
             <Link to="/" className="text-sm text-[#3c096c] hover:underline cursor-pointer">
               Forgot password?

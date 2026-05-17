@@ -8,7 +8,7 @@ if ($action === 'adminSitInRecords' && $request_method === 'POST') {
         exit();
     }
 
-    $records_query = "SELECT r.id, r.session_id, r.student_id_number, r.room, r.purpose, r.started_at, r.ended_at, r.duration_minutes, r.ended_by,
+    $records_query = "SELECT r.id, r.session_id, r.student_id_number, r.room, r.pc_number, r.purpose, r.started_at, r.ended_at, r.duration_minutes, r.ended_by,
                  st.first_name, st.last_name, st.course, st.year_level, st.profile_picture
                       FROM sit_in_records r
                       LEFT JOIN students st ON st.id = r.student_id

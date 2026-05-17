@@ -81,6 +81,12 @@ function handle_login(mysqli $db, array $input): void {
         json_response(401, ['success' => false, 'message' => 'Invalid password']);
     }
 
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    $_SESSION['student_id'] = intval($student['id']);
+    $_SESSION['student_id_number'] = $student['id_number'];
+
     $student['role'] = 'student';
     json_response(200, [
         'success' => true,
@@ -100,17 +106,45 @@ function handle_update_profile(mysqli $db, array $input): void {
     $middle_name = esc($db, trim($input['middleName'] ?? ''));
     $address = esc($db, trim($input['address'] ?? ''));
     $profile_picture = isset($input['photo']) ? esc($db, $input['photo']) : null;
+    $email = isset($input['email']) ? esc($db, trim($input['email'])) : '';
+    $password = isset($input['password']) ? $input['password'] : '';
 
     if ($first_name === '' || $last_name === '') {
         json_response(400, ['success' => false, 'message' => 'First name and last name are required']);
     }
 
-    $update_query = "UPDATE students
-                     SET first_name = '$first_name',
-                         last_name = '$last_name',
-                         middle_name = '$middle_name',
-                         address = '$address'" . ($profile_picture ? ", profile_picture = '$profile_picture'" : '') . "
-                     WHERE id_number = '$id_number'";
+    if ($email !== '') {
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            json_response(400, ['success' => false, 'message' => 'Invalid email address format']);
+        }
+        // Check for duplicate email across other students
+        $email_check = $db->query("SELECT id FROM students WHERE email = '$email' AND id_number != '$id_number' LIMIT 1");
+        if ($email_check && $email_check->num_rows > 0) {
+            json_response(409, ['success' => false, 'message' => 'Email is already exist']);
+        }
+    }
+
+    $update_fields = [
+        "first_name = '$first_name'",
+        "last_name = '$last_name'",
+        "middle_name = '$middle_name'",
+        "address = '$address'"
+    ];
+
+    if ($profile_picture !== null) {
+        $update_fields[] = "profile_picture = '$profile_picture'";
+    }
+
+    if ($email !== '') {
+        $update_fields[] = "email = '$email'";
+    }
+
+    if ($password !== '') {
+        $hashed = password_hash($password, PASSWORD_BCRYPT);
+        $update_fields[] = "password = '$hashed'";
+    }
+
+    $update_query = "UPDATE students SET " . implode(", ", $update_fields) . " WHERE id_number = '$id_number'";
 
     if (!$db->query($update_query)) {
         json_response(500, ['success' => false, 'message' => 'Failed to update profile']);

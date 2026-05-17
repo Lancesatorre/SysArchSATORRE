@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 
 import { useNavigate } from 'react-router-dom'
 import { authService } from '../services/authService'
+import LoadingScreen from '../components/LoadingScreen'
 
 // ── Icons ──────────────────────────────────────────────
 const Ico = ({ d, d2, cls = 'w-4 h-4' }) => (
@@ -183,14 +184,7 @@ export default function CurrentSessions() {
     }
   }
 
-  if (loading) return (
-    <div className="min-h-[70vh] flex items-center justify-center">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-10 h-10 rounded-full border-4 border-[#3c096c]/20 border-t-[#3c096c] animate-spin" />
-        <p className="text-sm font-semibold text-gray-400">Loading sessions...</p>
-      </div>
-    </div>
-  )
+  if (loading) return <LoadingScreen message="Loading active sessions..." />
 
   return (
     <div className="py-6 px-2 min-h-auto">
@@ -250,7 +244,7 @@ export default function CurrentSessions() {
             <table className="w-full min-w-225 text-sm">
               <thead>
                 <tr>
-                  {['Session ID', 'Student ID', 'Full Name', 'Room', 'Purpose', 'Started At', 'Remaining', 'Actions'].map(h => (
+                  {['Session ID', 'Student ID', 'Full Name', 'Room', 'PC No.', 'Purpose', 'Started At', 'Remaining', 'Actions'].map(h => (
                     <th
                       key={h}
                       className="text-left px-5 py-3.5 text-[0.6rem] font-black uppercase tracking-[0.14em] text-gray-400 bg-gray-50 border-b border-gray-100 whitespace-nowrap"
@@ -263,7 +257,7 @@ export default function CurrentSessions() {
               <tbody>
                 {filteredSessions.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-5 py-12 text-center">
+                    <td colSpan={9} className="px-5 py-12 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <IcoUsers cls="w-8 h-8 text-gray-200" />
                         <p className="text-sm text-gray-400 font-medium">
@@ -300,6 +294,13 @@ export default function CurrentSessions() {
                     <td className="px-5 py-3.5 border-b border-gray-50">
                       {s.room
                         ? <span className="text-xs font-bold text-[#3c096c] bg-[#3c096c]/08 border border-[#3c096c]/15 px-2 py-0.5 rounded-full">{s.room}</span>
+                        : <span className="text-xs text-gray-400">—</span>
+                      }
+                    </td>
+                    {/* PC No. */}
+                    <td className="px-5 py-3.5 border-b border-gray-50">
+                      {s.pc_number
+                        ? <span className="text-xs font-bold text-orange-600 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">{s.pc_number}</span>
                         : <span className="text-xs text-gray-400">—</span>
                       }
                     </td>

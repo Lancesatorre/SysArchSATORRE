@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useContext } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import ccsLogo from '../assets/ccsmainlogo.png';
 import { authService } from '../services/authService';
-import LoadingOverlay from './LoadingOverlay';
+import { ThemeContext } from '../services/ThemeContext';
+import LoadingScreen from './LoadingScreen';
+import SessionRecordsModal from './SessionRecordsModal';
 
 const formatNotificationTime = (dateValue) => {
   if (!dateValue) return 'Just now';
@@ -70,10 +72,9 @@ function NavLink({ to, children, onClick }) {
       to={to}
       onClick={onClick}
       style={{
-        color: isActive ? '#ff9100' : undefined,
-        borderBottom: isActive ? '2.5px solid #ff9100 ' : '2.5px solid transparent',
-        paddingBottom: '2px',
-        fontWeight: isActive ? 0 : undefined,
+        color: isActive ? '#ff9100' : '#ffffff',
+        borderBottom: isActive ? '2.5px solid #ff9100 ' : '',
+        fontWeight: isActive ? 600 : 500,
       }}
       className='hover:text-[#ff9100] transition duration-300 px-3 rounded-2xl'
     >
@@ -85,6 +86,66 @@ function NavLink({ to, children, onClick }) {
 export default function Navbar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { theme, toggleTheme } = useContext(ThemeContext);
+  const [activeSection, setActiveSection] = useState('home');
+
+  const handleSectionClick = (e, sectionId) => {
+    e.preventDefault();
+    if (pathname === '/') {
+      const el = document.getElementById(sectionId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    } else {
+      navigate('/');
+      setTimeout(() => {
+        const el = document.getElementById(sectionId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 150);
+    }
+  };
+
+  useEffect(() => {
+    if (pathname !== '/') {
+      setActiveSection('');
+      return;
+    }
+
+    const observerOptions = {
+      root: null,
+      rootMargin: '-20% 0px -50% 0px', // detects when section is in viewport view
+      threshold: 0.1
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          setActiveSection(entry.target.id);
+        }
+      });
+    }, observerOptions);
+
+    const sections = ['about', 'testimonials', 'faqs'];
+    sections.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+
+    const handleScroll = () => {
+      if (window.scrollY < 100) {
+        setActiveSection('home');
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    handleScroll();
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [pathname]);
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
@@ -104,6 +165,10 @@ export default function Navbar() {
   const notifRef = useRef(null);
   const sitInRef = useRef(null);
   const announcementRef = useRef(null);
+  const sessionRef = useRef(null);
+  const [sessionDropdownOpen, setSessionDropdownOpen] = useState(false);
+  const [sessionModalOpen, setSessionModalOpen] = useState(false);
+  const [hasActiveSession, setHasActiveSession] = useState(false);
 
   useEffect(() => {
     setIsLoggedIn(authService.isLoggedIn());
@@ -112,9 +177,23 @@ export default function Navbar() {
       setUser(sessionUser);
       if (sessionUser?.id_number && sessionUser?.role !== 'admin') {
         loadNotifications(sessionUser);
+        checkActiveSessionStatus(sessionUser);
       }
     }
   }, []);
+
+  const checkActiveSessionStatus = async (activeUser = user) => {
+    if (!activeUser?.id_number || activeUser?.role === 'admin') {
+      setHasActiveSession(false);
+      return;
+    }
+    try {
+      const response = await authService.fetchStudentCurrentSession(activeUser.id_number);
+      setHasActiveSession(!!response.active_session);
+    } catch (_) {
+      setHasActiveSession(false);
+    }
+  };
 
   const loadNotifications = async (activeUser = user, showLoader = true) => {
     if (!activeUser?.id_number) return;
@@ -122,9 +201,24 @@ export default function Navbar() {
       setNotificationsLoading(true);
     }
     try {
-      const response = await authService.fetchNotifications(activeUser.id_number);
-      setNotifications(response.notifications || []);
-      setUnreadCount(Number(response.unreadCount || 0));
+      // Fetch both types of notifications
+      const [globalRes, personalRes] = await Promise.all([
+        authService.fetchNotifications(activeUser.id_number),
+        authService.getPersonalNotifications(activeUser.id_number)
+      ]);
+
+      const globalLogs = (globalRes.notifications || []).map(n => ({ ...n, is_personal: false }));
+      const personalLogs = (personalRes.data || []).map(n => ({ ...n, is_personal: true, tag: 'Reservation' }));
+
+      // Merge and sort
+      const merged = [...globalLogs, ...personalLogs].sort((a, b) =>
+        new Date(b.created_at) - new Date(a.created_at)
+      );
+
+      const totalUnread = merged.filter(n => Number(n.is_read) === 0).length;
+
+      setNotifications(merged);
+      setUnreadCount(totalUnread);
     } catch (_) {
       if (showLoader) {
         setNotifications([]);
@@ -143,21 +237,27 @@ export default function Navbar() {
     const alreadyRead = Number(notification.is_read || 0) === 1;
     if (alreadyRead) return;
 
+    // Optimistic update
     setNotifications(prev => prev.map((item) => (
-      String(item.id) === String(notification.id)
+      String(item.id) === String(notification.id) && item.is_personal === notification.is_personal
         ? { ...item, is_read: 1 }
         : item
     )));
     setUnreadCount((prev) => Math.max(0, Number(prev || 0) - 1));
 
     try {
-      await authService.markNotificationRead({
-        idNumber: user.id_number,
-        notificationId: notification.id,
-      });
+      if (notification.is_personal) {
+        await authService.markPersonalAlertRead(user.id_number, notification.id);
+      } else {
+        await authService.markNotificationRead({
+          idNumber: user.id_number,
+          notificationId: notification.id,
+        });
+      }
     } catch (_) {
+      // Revert on error
       setNotifications(prev => prev.map((item) => (
-        String(item.id) === String(notification.id)
+        String(item.id) === String(notification.id) && item.is_personal === notification.is_personal
           ? { ...item, is_read: 0 }
           : item
       )));
@@ -181,7 +281,10 @@ export default function Navbar() {
     setUnreadCount(0);
 
     try {
-      await authService.markAllNotificationsRead(user.id_number);
+      await Promise.all([
+        authService.markAllNotificationsRead(user.id_number),
+        authService.markAllPersonalAlertsRead(user.id_number)
+      ]);
     } catch (_) {
       setNotifications(snapshot);
       setUnreadCount(snapshotUnread);
@@ -194,7 +297,10 @@ export default function Navbar() {
     let cancelled = false;
     const refreshNotifications = async () => {
       if (cancelled) return;
-      await loadNotifications(user, false);
+      await Promise.all([
+        loadNotifications(user, false),
+        checkActiveSessionStatus(user)
+      ]);
     };
 
     const intervalId = setInterval(refreshNotifications, 10000);
@@ -250,6 +356,7 @@ export default function Navbar() {
       if (notifRef.current && !notifRef.current.contains(e.target)) setNotificationOpen(false);
       if (sitInRef.current && !sitInRef.current.contains(e.target)) setSitInOpen(false);
       if (announcementRef.current && !announcementRef.current.contains(e.target)) setAnnouncementOpen(false);
+      if (sessionRef.current && !sessionRef.current.contains(e.target)) setSessionDropdownOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -286,7 +393,7 @@ export default function Navbar() {
     const active = subPaths.some(isPathActive);
     return {
       color: active ? '#ff9100' : undefined,
-      borderBottom: active ? '2.5px solid #ff9100' : '2.5px solid transparent',
+      borderBottom: active ? '2.5px solid #ff9100' : '',
       paddingBottom: active ? '2px' : undefined,
       fontWeight: active ? 0 : undefined,
     };
@@ -294,10 +401,14 @@ export default function Navbar() {
 
   return (
     <>
-      {logoutLoading && <LoadingOverlay message="Logging out..." />}
-      <nav ref={navRef} className='relative min-h-[5vh] mx-3 sm:mx-6 lg:mx-16 xl:mx-40 bg-[#3c096c] flex justify-between shadow-md shadow-[#ff9100]/20 items-center rounded-3xl px-4 sm:px-8 lg:px-12 mb-5'>
+      {logoutLoading && (
+        <div className="fixed inset-0 bg-white/75 dark:bg-zinc-950/75 backdrop-blur-md z-50 flex items-center justify-center animate-fade-in">
+          <LoadingScreen message="Logging out..." />
+        </div>
+      )}
+      <nav ref={navRef} className='sticky top-4 sm:top-5 z-40 min-h-[5vh] mx-3 sm:mx-6 lg:mx-16 xl:mx-40 bg-[#3c096c]/90 backdrop-blur-md flex justify-between shadow-md shadow-[#ff9100]/20 items-center rounded-3xl px-4 sm:px-8 lg:px-12 mb-5 transition-all duration-300'>
         <div className='flex items-center justify-center flex-row gap-3'>
-          <img src={ccsLogo} alt="CCS Logo" className='rounded-md h-8 w-8 border border-[#240046]'/>
+          <img src={ccsLogo} alt="CCS Logo" className='rounded-md h-8 w-8 border border-[#240046]' />
           <h1 className='font-bold text-lg text-white tracking-wider'>
             <Link to="/" className='text-white hover:text-[#ff9100] transition duration-300'>Sit-inIT</Link>
           </h1>
@@ -307,22 +418,60 @@ export default function Navbar() {
           {!isLoggedIn ? (
             <>
               <div className='text-white flex justify-center items-center gap-10'>
-                <NavLink to="/">Home</NavLink>
-                <NavLink to="/about">About</NavLink>
-
-                <div className='relative group py-4'>
-                  <span className='cursor-pointer hover:text-[#ff9100] transition duration-300 flex items-center gap-1'>
-                    Community
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </span>
-                  <div className='absolute left-20 -translate-x-1/2 top-full mt-0 hidden w-40 bg-white rounded-md shadow-lg group-hover:block z-50 overflow-hidden border border-[#3c096c]'>
-                    <Link to="/community/forums" className='block px-4 py-3 text-[#3c096c] font-medium hover:bg-[#3c096c] hover:text-white transition duration-300'>Forums</Link>
-                    <Link to="/community/events" className='block px-4 py-3 text-[#3c096c] font-medium hover:bg-[#3c096c] hover:text-white transition duration-300'>Events</Link>
-                    <Link to="/community/members" className='block px-4 py-3 text-[#3c096c] font-medium hover:bg-[#3c096c] hover:text-white transition duration-300'>Members</Link>
-                  </div>
-                </div>
+                <Link
+                  to="/"
+                  onClick={() => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  style={{
+                    color: activeSection === 'home' ? '#ff9100' : '#ffffff',
+                    borderBottom: activeSection === 'home' ? '2.5px solid #ff9100' : '',
+                    fontWeight: activeSection === 'home' ? 600 : 500,
+                  }}
+                  className={`hover:text-[#ff9100] transition duration-300 px-3 pb-0.5 ${activeSection === 'home' ? 'rounded-2xl' : 'rounded-t-2xl rounded-b-none'
+                    }`}
+                >
+                  Home
+                </Link>
+                <a
+                  href="/#about"
+                  onClick={(e) => handleSectionClick(e, 'about')}
+                  style={{
+                    color: activeSection === 'about' ? '#ff9100' : '#ffffff',
+                    borderBottom: activeSection === 'about' ? '2.5px solid #ff9100' : '',
+                    fontWeight: activeSection === 'about' ? 600 : 500,
+                  }}
+                  className={`hover:text-[#ff9100] transition duration-300 px-3 pb-0.5 ${activeSection === 'about' ? 'rounded-2xl' : 'rounded-t-2xl rounded-b-none'
+                    }`}
+                >
+                  About
+                </a>
+                <a
+                  href="/#faqs"
+                  onClick={(e) => handleSectionClick(e, 'faqs')}
+                  style={{
+                    color: activeSection === 'faqs' ? '#ff9100' : '#ffffff',
+                    borderBottom: activeSection === 'faqs' ? '2.5px solid #ff9100' : '',
+                    fontWeight: activeSection === 'faqs' ? 600 : 500,
+                  }}
+                  className={`hover:text-[#ff9100] transition duration-300 px-3 pb-0.5 ${activeSection === 'faqs' ? 'rounded-2xl' : 'rounded-t-2xl rounded-b-none'
+                    }`}
+                >
+                  FAQs
+                </a>
+                <a
+                  href="/#testimonials"
+                  onClick={(e) => handleSectionClick(e, 'testimonials')}
+                  style={{
+                    color: activeSection === 'testimonials' ? '#ff9100' : '#ffffff',
+                    borderBottom: activeSection === 'testimonials' ? '2.5px solid #ff9100' : '',
+                    fontWeight: activeSection === 'testimonials' ? 600 : 500,
+                  }}
+                  className={`hover:text-[#ff9100] transition duration-300 px-3 pb-0.5 ${activeSection === 'testimonials' ? 'rounded-2xl' : 'rounded-t-2xl rounded-b-none'
+                    }`}
+                >
+                  Testimonials
+                </a>
               </div>
             </>
           ) : (
@@ -373,8 +522,13 @@ export default function Navbar() {
                   <>
                     <NavLink to="/student/history">History</NavLink>
                     <NavLink to="/student/reservation">Reservation</NavLink>
+                    <NavLink to="/student/software-availability">Software</NavLink>
                   </>
                 )}
+
+                {isAdmin && <NavLink to="/admin/reservations">Reservation</NavLink>}
+                {isAdmin && <NavLink to="/admin/software-management">Software</NavLink>}
+                {isAdmin && <NavLink to="/admin/generate-reports">Reports</NavLink>}
 
                 {isAdmin ? (
                   <div ref={announcementRef} className='relative'>
@@ -442,8 +596,8 @@ export default function Navbar() {
                           <div className='flex items-center gap-2'>
                             <span className='w-7 h-7 rounded-lg bg-white/10 text-[#e9d5ff] flex items-center justify-center'>
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                               </svg>
                             </span>
                             <p className='text-sm font-black text-white'>Notifications</p>
@@ -480,7 +634,22 @@ export default function Navbar() {
                                 className={`border rounded-xl p-3 flex gap-3 transition-colors ${Number(item.is_read || 0) === 1 ? 'bg-[#1e1035] border-[#7b2cbf]/15 hover:bg-[#25113f]' : 'bg-[#24123f] border-[#7b2cbf]/25 hover:bg-[#2a1547] hover:border-[#c77dff]/45'}`}
                               >
                                 <div className='relative shrink-0'>
-                                  <div className='w-9 h-9 rounded-lg bg-[#3c096c] text-white text-[0.58rem] font-black flex items-center justify-center'>CCS</div>
+                                  {item.is_personal ? (
+                                    <div
+                                      className={`w-9 h-9 rounded-lg flex items-center justify-center border ${item.type === 'reservation_approved'
+                                        ? 'bg-green-500/10 border-green-500/20 text-green-400'
+                                        : 'bg-red-500/10 border-red-500/20 text-red-400'
+                                        }`}
+                                    >
+                                      {item.type === 'reservation_approved' ? (
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                      ) : (
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <div className='w-9 h-9 rounded-lg bg-[#3c096c] text-white text-[0.58rem] font-black flex items-center justify-center border border-[#7b2cbf]/20'>CCS</div>
+                                  )}
                                   {Number(item.is_read || 0) === 0 && (
                                     <span className='absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#ff9100] border border-[#140828]' />
                                   )}
@@ -520,6 +689,20 @@ export default function Navbar() {
                   </div>
                 )}
               </div>
+
+              {isLoggedIn && !isAdmin && hasActiveSession && (
+                <button
+                  onClick={() => setSessionModalOpen(true)}
+                  title="Active Session Tracker"
+                  className="relative w-[38px] h-[38px] rounded-[10px] bg-linear-to-br from-[#ff9100]/25 to-[#3c096c]/25 hover:from-[#ff9100]/35 hover:to-[#3c096c]/35 text-white hover:text-[#ff9100] border border-[#ff9100]/30 hover:border-[#ff9100]/60 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer shadow-md shadow-[#ff9100]/10 ml-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-[18px] h-[18px] stroke-[2.2]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <rect x="2" y="3" width="20" height="14" rx="2" />
+                    <line x1="8" y1="21" x2="16" y2="21" />
+                    <line x1="12" y1="17" x2="12" y2="21" />
+                  </svg>
+                </button>
+              )}
 
               <div ref={profileRef} className='relative ml-2'>
                 <button
@@ -582,11 +765,11 @@ export default function Navbar() {
 
                     <div style={{ padding: '6px' }}>
                       <ProfileMenuItem to={profilePath} icon={
-                        <svg viewBox="0 0 24 24" fill="currentColor"><path fillRule="evenodd" d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" clipRule="evenodd"/></svg>
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path fillRule="evenodd" d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" clipRule="evenodd" /></svg>
                       } onClick={() => setProfileOpen(false)}>{user?.role === 'admin' ? 'Dashboard' : 'Profile'}</ProfileMenuItem>
 
                       <ProfileMenuItem to="/settings" icon={
-                        <svg viewBox="0 0 24 24" fill="currentColor"><path fillRule="evenodd" d="M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 4.889c-.02.12-.115.26-.297.348a7.493 7.493 0 0 0-.986.57c-.166.115-.334.126-.45.083L6.3 5.508a1.875 1.875 0 0 0-2.282.819l-.922 1.597a1.875 1.875 0 0 0 .432 2.385l.84.692c.095.078.17.229.154.43a7.598 7.598 0 0 0 0 1.139c.015.2-.059.352-.153.43l-.841.692a1.875 1.875 0 0 0-.432 2.385l.922 1.597a1.875 1.875 0 0 0 2.282.818l1.019-.382c.115-.043.283-.031.45.082.312.214.641.405.985.57.182.088.277.228.297.35l.178 1.071c.151.904.933 1.567 1.85 1.567h1.844c.916 0 1.699-.663 1.85-1.567l.178-1.072c.02-.12.114-.26.297-.349.344-.165.673-.356.985-.57.167-.114.335-.125.45-.082l1.02.382a1.875 1.875 0 0 0 2.28-.819l.923-1.597a1.875 1.875 0 0 0-.432-2.385l-.84-.692c-.095-.078-.17-.229-.154-.43a7.614 7.614 0 0 0 0-1.139c-.016-.2.059-.352.153-.43l.84-.692c.708-.582.891-1.59.433-2.385l-.922-1.597a1.875 1.875 0 0 0-2.282-.818l-1.02.382c-.114.043-.282.031-.449-.083a7.49 7.49 0 0 0-.985-.57c-.183-.087-.277-.227-.297-.348l-.179-1.072a1.875 1.875 0 0 0-1.85-1.567h-1.843ZM12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z" clipRule="evenodd"/></svg>
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path fillRule="evenodd" d="M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 4.889c-.02.12-.115.26-.297.348a7.493 7.493 0 0 0-.986.57c-.166.115-.334.126-.45.083L6.3 5.508a1.875 1.875 0 0 0-2.282.819l-.922 1.597a1.875 1.875 0 0 0 .432 2.385l.84.692c.095.078.17.229.154.43a7.598 7.598 0 0 0 0 1.139c.015.2-.059.352-.153.43l-.841.692a1.875 1.875 0 0 0-.432 2.385l.922 1.597a1.875 1.875 0 0 0 2.282.818l1.019-.382c.115-.043.283-.031.45.082.312.214.641.405.985.57.182.088.277.228.297.35l.178 1.071c.151.904.933 1.567 1.85 1.567h1.844c.916 0 1.699-.663 1.85-1.567l.178-1.072c.02-.12.114-.26.297-.349.344-.165.673-.356.985-.57.167-.114.335-.125.45-.082l1.02.382a1.875 1.875 0 0 0 2.28-.819l.923-1.597a1.875 1.875 0 0 0-.432-2.385l-.84-.692c-.095-.078-.17-.229-.154-.43a7.614 7.614 0 0 0 0-1.139c-.016-.2.059-.352.153-.43l.84-.692c.708-.582.891-1.59.433-2.385l-.922-1.597a1.875 1.875 0 0 0-2.282-.818l-1.02.382c-.114.043-.282.031-.449-.083a7.49 7.49 0 0 0-.985-.57c-.183-.087-.277-.227-.297-.348l-.179-1.072a1.875 1.875 0 0 0-1.85-1.567h-1.843ZM12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z" clipRule="evenodd" /></svg>
                       } onClick={() => setProfileOpen(false)}>Settings</ProfileMenuItem>
 
                       <div style={{ height: '1px', background: 'rgba(157,78,221,0.12)', margin: '4px 0' }} />
@@ -649,38 +832,50 @@ export default function Navbar() {
             {!isLoggedIn ? (
               <div className='flex flex-col gap-2 text-left'>
                 <div className='px-2 py-1 text-[0.62rem] font-black uppercase tracking-wider text-[#c77dff]'>Main</div>
-                {[
-                  { to: '/', label: 'Home' },
-                  { to: '/about', label: 'About' },
-                ].map(({ to, label }) => (
-                  <Link
-                    key={to}
-                    to={to}
-                    onClick={closeMobileMenu}
-                    style={isPathActive(to) ? { color: '#ff9100', background: 'rgba(255,145,0,0.1)', borderColor: 'rgba(255,145,0,0.35)' } : {}}
-                    className='px-3 py-2.5 rounded-xl border border-transparent hover:text-[#ff9100] hover:bg-[#3c096c]/35 transition duration-300'
-                  >
-                    {label}
-                  </Link>
-                ))}
-
-                <div className='border-t border-[#7b2cbf]/35 my-1' />
-                <div className='px-2 py-1 text-[0.62rem] font-black uppercase tracking-wider text-[#c77dff]'>Community</div>
-                {[
-                  { to: '/community/forums', label: 'Forums' },
-                  { to: '/community/events', label: 'Events' },
-                  { to: '/community/members', label: 'Members' },
-                ].map(({ to, label }) => (
-                  <Link
-                    key={to}
-                    to={to}
-                    onClick={closeMobileMenu}
-                    style={isPathActive(to) ? { color: '#ff9100', background: 'rgba(255,145,0,0.1)', borderColor: 'rgba(255,145,0,0.35)' } : {}}
-                    className='px-3 py-2.5 rounded-xl border border-transparent hover:text-[#ff9100] hover:bg-[#3c096c]/35 transition duration-300'
-                  >
-                    {label}
-                  </Link>
-                ))}
+                <Link
+                  to="/"
+                  onClick={() => {
+                    closeMobileMenu();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  style={activeSection === 'home' ? { color: '#ff9100', background: 'rgba(255,145,0,0.1)', borderColor: 'rgba(255,145,0,0.35)' } : {}}
+                  className='px-3 py-2.5 rounded-xl border border-transparent hover:text-[#ff9100] hover:bg-[#3c096c]/35 transition duration-300'
+                >
+                  Home
+                </Link>
+                <a
+                  href="/#about"
+                  onClick={(e) => {
+                    closeMobileMenu();
+                    handleSectionClick(e, 'about');
+                  }}
+                  style={activeSection === 'about' ? { color: '#ff9100', background: 'rgba(255,145,0,0.1)', borderColor: 'rgba(255,145,0,0.35)' } : {}}
+                  className='px-3 py-2.5 rounded-xl border border-transparent hover:text-[#ff9100] hover:bg-[#3c096c]/35 transition duration-300 font-medium text-white text-left block'
+                >
+                  About
+                </a>
+                <a
+                  href="/#faqs"
+                  onClick={(e) => {
+                    closeMobileMenu();
+                    handleSectionClick(e, 'faqs');
+                  }}
+                  style={activeSection === 'faqs' ? { color: '#ff9100', background: 'rgba(255,145,0,0.1)', borderColor: 'rgba(255,145,0,0.35)' } : {}}
+                  className='px-3 py-2.5 rounded-xl border border-transparent hover:text-[#ff9100] hover:bg-[#3c096c]/35 transition duration-300 font-medium text-white text-left block'
+                >
+                  FAQs
+                </a>
+                <a
+                  href="/#testimonials"
+                  onClick={(e) => {
+                    closeMobileMenu();
+                    handleSectionClick(e, 'testimonials');
+                  }}
+                  style={activeSection === 'testimonials' ? { color: '#ff9100', background: 'rgba(255,145,0,0.1)', borderColor: 'rgba(255,145,0,0.35)' } : {}}
+                  className='px-3 py-2.5 rounded-xl border border-transparent hover:text-[#ff9100] hover:bg-[#3c096c]/35 transition duration-300 font-medium text-white text-left block'
+                >
+                  Testimonials
+                </a>
               </div>
             ) : (
               <div className='flex flex-col gap-2 text-left'>
@@ -704,6 +899,20 @@ export default function Navbar() {
                       >{label}</Link>
                     ))}
 
+                    <div className='px-2 pt-2 pb-1 text-[0.62rem] font-black uppercase tracking-wider text-[#c77dff]'>Reservations</div>
+                    <Link
+                      to="/admin/reservations" onClick={closeMobileMenu}
+                      style={isPathActive("/admin/reservations") ? { color: '#ff9100', fontWeight: 600, background: 'rgba(255,145,0,0.1)', borderColor: 'rgba(255,145,0,0.35)' } : {}}
+                      className='px-3 py-2.5 rounded-xl border border-transparent hover:text-[#ff9100] hover:bg-[#3c096c]/35 transition duration-300'
+                    >Manage Reservations</Link>
+
+                    <div className='px-2 pt-2 pb-1 text-[0.62rem] font-black uppercase tracking-wider text-[#c77dff]'>Software</div>
+                    <Link
+                      to="/admin/software-management" onClick={closeMobileMenu}
+                      style={isPathActive("/admin/software-management") ? { color: '#ff9100', fontWeight: 600, background: 'rgba(255,145,0,0.1)', borderColor: 'rgba(255,145,0,0.35)' } : {}}
+                      className='px-3 py-2.5 rounded-xl border border-transparent hover:text-[#ff9100] hover:bg-[#3c096c]/35 transition duration-300'
+                    >Software</Link>
+
                     <div className='px-2 pt-2 pb-1 text-[0.62rem] font-black uppercase tracking-wider text-[#c77dff]'>Announcement</div>
                     {[
                       { to: '/admin/create-announcement', label: 'Create Announcement' },
@@ -721,6 +930,7 @@ export default function Navbar() {
                     {[
                       { to: '/student/history', label: 'History' },
                       { to: '/student/reservation', label: 'Reservation' },
+                      { to: '/student/software-availability', label: 'Software' },
                     ].map(({ to, label }) => (
                       <Link
                         key={to} to={to} onClick={closeMobileMenu}
@@ -728,6 +938,17 @@ export default function Navbar() {
                         className='px-3 py-2.5 rounded-xl border border-transparent hover:text-[#ff9100] hover:bg-[#3c096c]/35 transition duration-300'
                       >{label}</Link>
                     ))}
+                    {hasActiveSession && (
+                      <button
+                        onClick={() => {
+                          closeMobileMenu();
+                          setSessionModalOpen(true);
+                        }}
+                        className='text-left px-3 py-2.5 rounded-xl border border-transparent text-[#e9d5ff] hover:text-[#ff9100] hover:bg-[#3c096c]/35 transition duration-300'
+                      >
+                        Active Session Tracker
+                      </button>
+                    )}
                   </>
                 )}
                 <Link
@@ -743,6 +964,31 @@ export default function Navbar() {
                 </button>
               </div>
             )}
+            <div className="border-t border-[#7b2cbf]/35 my-2 pt-2 flex flex-col gap-2 px-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#c4b5d8]">Theme</span>
+                <button
+                  onClick={toggleTheme}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 text-xs font-semibold text-white transition-all cursor-pointer"
+                >
+                  {theme === 'light' ? (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-[14px] h-[14px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                      </svg>
+                      Dark Mode
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-[14px] h-[14px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m0 13.5V21M4.22 4.22l1.59 1.59m12.38 12.38l1.59 1.59M3 12h2.25m13.5 0H21m-16.78 6.78l1.59-1.59M17.66 6.34l1.59-1.59M12 7.5a4.5 4.5 0 110 9 4.5 4.5 0 010-9z" />
+                      </svg>
+                      Light Mode
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </nav>
@@ -809,6 +1055,7 @@ export default function Navbar() {
           </div>
         </div>
       )}
+      <SessionRecordsModal isOpen={sessionModalOpen} onClose={() => setSessionModalOpen(false)} />
     </>
   );
 }

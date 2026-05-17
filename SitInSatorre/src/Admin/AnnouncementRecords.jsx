@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authService } from '../services/authService'
+import LoadingScreen from '../components/LoadingScreen'
 
 const Ico = ({ d, d2, cls = 'w-4 h-4' }) => (
   <svg className={cls} fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
@@ -117,14 +118,7 @@ export default function AnnouncementRecords() {
     }, 'Announcement updated successfully.')
   }
 
-  if (loading) return (
-    <div className="min-h-[70vh] flex items-center justify-center">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-10 h-10 rounded-full border-4 border-[#3c096c]/20 border-t-[#3c096c] animate-spin" />
-        <p className="text-sm font-semibold text-gray-400">Loading announcement records...</p>
-      </div>
-    </div>
-  )
+  if (loading) return <LoadingScreen message="Loading announcements..." />
 
   return (
     <div className="py-6 px-2">

@@ -27,6 +27,9 @@ CREATE TABLE IF NOT EXISTS sit_in_sessions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     student_id INT NOT NULL,
     student_id_number VARCHAR(50) NOT NULL,
+    reservation_id INT DEFAULT NULL,
+    room VARCHAR(50) DEFAULT NULL,
+    purpose VARCHAR(255) DEFAULT NULL,
     started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ended_at TIMESTAMP NULL DEFAULT NULL,
     status ENUM('active', 'ended') NOT NULL DEFAULT 'active',
@@ -43,6 +46,7 @@ CREATE TABLE IF NOT EXISTS sit_in_records (
     session_id INT NOT NULL,
     student_id INT NOT NULL,
     student_id_number VARCHAR(50) NOT NULL,
+    reservation_id INT DEFAULT NULL,
     room VARCHAR(50) DEFAULT NULL,
     purpose VARCHAR(255) DEFAULT NULL,
     started_at DATETIME NOT NULL,
@@ -68,6 +72,61 @@ CREATE TABLE IF NOT EXISTS announcements (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_announcement_created (created_at)
 );
+
+-- Labs table for lab information
+CREATE TABLE IF NOT EXISTS labs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    lab_name VARCHAR(100) NOT NULL,
+    floor INT DEFAULT NULL,
+    capacity INT DEFAULT 40,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_lab_name (lab_name)
+);
+
+-- Reservations table for PC reservations
+CREATE TABLE IF NOT EXISTS reservations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    pc_id INT,
+    lab_id INT NOT NULL,
+    pc_number VARCHAR(50),
+    reservation_date DATE NOT NULL,
+    time_from TIME NOT NULL,
+    time_to TIME NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'pending',
+    purpose VARCHAR(255) DEFAULT 'C Programming',
+    decline_reason TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    approved_at TIMESTAMP NULL DEFAULT NULL,
+    INDEX idx_student_id (student_id),
+    INDEX idx_lab_id (lab_id),
+    INDEX idx_status (status),
+    INDEX idx_reservation_date (reservation_date),
+    CONSTRAINT fk_reservations_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+    CONSTRAINT fk_reservations_lab FOREIGN KEY (lab_id) REFERENCES labs(id) ON DELETE CASCADE
+);
+
+-- student_notifications table for personalized alerts
+CREATE TABLE IF NOT EXISTS student_notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    type VARCHAR(50) NOT NULL, -- 'reservation_approved', 'reservation_declined'
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_notif_student (student_id),
+    INDEX idx_notif_read (is_read),
+    CONSTRAINT fk_notif_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+);
+
+-- Add default labs
+INSERT INTO labs (lab_name, floor, capacity) VALUES 
+('Lab 524', 5, 40),
+('Lab 526', 5, 38),
+('Lab 528', 5, 40),
+('Lab 530', 5, 36)
+ON DUPLICATE KEY UPDATE lab_name=lab_name;
 
 -- Add a default test user (optional)
 -- Password: password123

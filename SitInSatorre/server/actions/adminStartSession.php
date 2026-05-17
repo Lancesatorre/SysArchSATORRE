@@ -11,15 +11,16 @@ if ($action === 'adminStartSession' && $request_method === 'POST') {
     $student_id_number = $db->real_escape_string(trim($input['studentIdNumber'] ?? ''));
     $room = $db->real_escape_string(trim($input['room'] ?? ''));
     $purpose = $db->real_escape_string(trim($input['purpose'] ?? ''));
+    $pc_number = $db->real_escape_string(trim($input['pcNumber'] ?? ''));
     if ($student_id_number === '') {
         http_response_code(400);
         $response['message'] = 'Student ID number is required';
         echo json_encode($response);
         exit();
     }
-    if ($room === '' || $purpose === '') {
+    if ($room === '' || $purpose === '' || $pc_number === '') {
         http_response_code(400);
-        $response['message'] = 'Room and purpose are required';
+        $response['message'] = 'Room, PC number and purpose are required';
         echo json_encode($response);
         exit();
     }
@@ -50,8 +51,8 @@ if ($action === 'adminStartSession' && $request_method === 'POST') {
         exit();
     }
 
-    $start_session_query = "INSERT INTO sit_in_sessions (student_id, student_id_number, room, purpose, status)
-                VALUES ({$student['id']}, '{$student['id_number']}', '$room', '$purpose', 'active')";
+    $start_session_query = "INSERT INTO sit_in_sessions (student_id, student_id_number, room, purpose, pc_number, status)
+                VALUES ({$student['id']}, '{$student['id_number']}', '$room', '$purpose', '$pc_number', 'active')";
     if (!$db->query($start_session_query)) {
         http_response_code(500);
         $response['message'] = 'Failed to initiate sit-in session';

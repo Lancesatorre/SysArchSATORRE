@@ -27,12 +27,37 @@ const buildApiCandidates = () => {
 };
 
 const API_URL_CANDIDATES = buildApiCandidates();
-let activeApiUrl = API_URL_CANDIDATES[0];
+let activeApiUrl = localStorage.getItem("activeApiUrl") || API_URL_CANDIDATES[0];
 
 const getApiCandidateOrder = () => {
   const remaining = API_URL_CANDIDATES.filter((url) => url !== activeApiUrl);
   return [activeApiUrl, ...remaining];
 };
+
+const probeApiUrl = async () => {
+  for (const baseUrl of API_URL_CANDIDATES) {
+    try {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 1000);
+      
+      const response = await fetch(`${baseUrl}?action=probe`, {
+        method: "GET",
+        signal: controller.signal
+      });
+      clearTimeout(id);
+      if (response.ok || response.status === 400 || response.status === 404 || response.status === 200) {
+        activeApiUrl = baseUrl;
+        localStorage.setItem("activeApiUrl", baseUrl);
+        console.log("[AUTH] Discovered working API URL:", baseUrl);
+        break;
+      }
+    } catch (e) {
+      // Proceed to next candidate
+    }
+  }
+};
+
+probeApiUrl();
 
 // Helper function to handle API requests
 const apiRequest = async (action, data) => {
@@ -67,6 +92,7 @@ const apiRequest = async (action, data) => {
         }
 
         activeApiUrl = baseUrl;
+        localStorage.setItem("activeApiUrl", baseUrl);
         return responseData;
       } catch (error) {
         const isNetworkError =
@@ -98,6 +124,181 @@ export const authService = {
     const user = authService.getUser();
     // Support both current (id_number) and legacy (idNumber) cached user shapes.
     return (user?.id_number || user?.idNumber || "").toString().trim();
+  },
+
+  // Fetch Dynamic Time Slots
+  fetchTimeSlots: async () => {
+    try {
+      const response = await apiRequest("getTimeSlots", {});
+      return response.success ? response.data : [];
+    } catch (error) {
+      console.error("Error fetching time slots:", error);
+      return [];
+    }
+  },
+
+  // Admin: Get all reservation data (pending, logs, labs)
+  adminGetReservations: async () => {
+    try {
+      return await apiRequest("adminGetReservations", {});
+    } catch (error) {
+      console.error("Error fetching admin reservations:", error);
+      throw error;
+    }
+  },
+
+  // Admin: Approve a reservation
+  adminApproveReservation: async (id) => {
+    try {
+      return await apiRequest("adminApproveReservation", { id });
+    } catch (error) {
+      console.error("Error approving reservation:", error);
+      throw error;
+    }
+  },
+
+  // Admin: Decline a reservation
+  adminDeclineReservation: async (id, reason) => {
+    try {
+      return await apiRequest("adminDeclineReservation", { id, reason });
+    } catch (error) {
+      console.error("Error declining reservation:", error);
+      throw error;
+    }
+  },
+
+  adminGetLabPCs: async (labId) => {
+    try {
+      return await apiRequest("adminGetLabPCs", { lab_id: labId });
+    } catch (error) {
+      console.error("Error fetching lab PCs:", error);
+      throw error;
+    }
+  },
+
+  adminUpdatePCStatus: async (pcId, status) => {
+    try {
+      return await apiRequest("adminUpdatePCStatus", { pc_id: pcId, status });
+    } catch (error) {
+      console.error("Error updating PC status:", error);
+      throw error;
+    }
+  },
+
+  adminCreateTimeSlot: async (slotData) => {
+    try {
+      return await apiRequest("adminCreateTimeSlot", slotData);
+    } catch (error) {
+      console.error("Error creating time slot:", error);
+      throw error;
+    }
+  },
+
+  adminDeleteTimeSlot: async (id) => {
+    try {
+      return await apiRequest("adminDeleteTimeSlot", { id });
+    } catch (error) {
+      console.error("Error deleting time slot:", error);
+      throw error;
+    }
+  },
+
+  adminClearAllTimeSlots: async () => {
+    try {
+      return await apiRequest("clearTimeSlots", {});
+    } catch (error) {
+      console.error("Error clearing time slots:", error);
+      throw error;
+    }
+  },
+
+  getPersonalNotifications: async (idNumber) => {
+    try {
+      return await apiRequest("getPersonalNotifications", { idNumber });
+    } catch (error) {
+      console.error("Error fetching personal notifications:", error);
+      throw error;
+    }
+  },
+
+  markPersonalAlertRead: async (idNumber, notificationId) => {
+    try {
+      return await apiRequest("markPersonalAlertRead", { 
+        idNumber,
+        notification_id: notificationId 
+      });
+    } catch (error) {
+      console.error("Error marking alert as read:", error);
+      throw error;
+    }
+  },
+
+  markAllPersonalAlertsRead: async (idNumber) => {
+    try {
+      return await apiRequest("markAllPersonalAlertsRead", { idNumber });
+    } catch (error) {
+      console.error("Error marking all personal alerts as read:", error);
+      throw error;
+    }
+  },
+
+  adminUpdateLabStatus: async (labId, status) => {
+    try {
+      const response = await apiRequest("adminUpdateLabStatus", {
+        lab_id: labId,
+        status: status
+      });
+      return response;
+    } catch (error) {
+      console.error("Error updating lab status:", error);
+      throw error;
+    }
+  },
+
+  adminBulkUpdatePCStatus: async (pcIds, status) => {
+    try {
+      return await apiRequest("bulkUpdatePCStatus", { pc_ids: pcIds, status });
+    } catch (error) {
+      console.error("Error bulk updating PCs:", error);
+      throw error;
+    }
+  },
+
+  adminGetAuditHistory: async (params = {}) => {
+    try {
+      return await apiRequest("adminGetAuditHistory", params);
+    } catch (error) {
+      console.error("Error fetching audit history:", error);
+      throw error;
+    }
+  },
+
+  adminStartReservationSession: async (id, purpose = '') => {
+    try {
+      return await apiRequest("adminStartReservationSession", { id, purpose });
+    } catch (error) {
+      console.error("Error starting reservation session:", error);
+      throw error;
+    }
+  },
+
+  adminMarkReservationAbsent: async (id) => {
+    try {
+      return await apiRequest("adminMarkReservationAbsent", { id });
+    } catch (error) {
+      console.error("Error marking reservation absent:", error);
+      throw error;
+    }
+  },
+
+  adminEndReservationSession: async (id, feedback = '') => {
+    try {
+      // We use the common endSession endpoint which handles sit_in_sessions and linked reservations
+      return await apiRequest("adminEndReservationSession", { id, adminFeedback: feedback });
+    } catch (error) {
+      console.error("Error ending reservation session:", error);
+      throw error;
+    }
   },
 
   // =========================
@@ -162,6 +363,8 @@ export const authService = {
         middleName: profileData.middleName || "",
         address: profileData.address || "",
         photo: profileData.photo || null,
+        email: profileData.email || "",
+        password: profileData.password || "",
       });
 
       if (response.user) {
@@ -197,13 +400,14 @@ export const authService = {
   // =========================
   // ADMIN - START SESSION
   // =========================
-  adminStartSession: async (studentIdNumber, room = "", purpose = "") => {
+  adminStartSession: async (studentIdNumber, room = "", purpose = "", pcNumber = "") => {
     try {
       return await apiRequest("adminStartSession", {
         adminId: authService.getAdminId(),
         studentIdNumber,
         room,
         purpose,
+        pcNumber,
       });
     } catch (error) {
       throw new Error(error.message || "Failed to start session");
@@ -409,6 +613,96 @@ export const authService = {
     }
   },
 
+  // STUDENT - SIT-IN SUMMARY
+  // =======================
+  fetchStudentSitInSummary: async (idNumber) => {
+    try {
+      const response = await apiRequest("studentSitInSummary", { idNumber });
+      return response.data || {
+        total_hours: 0,
+        session_count: 0,
+        average_duration: 0,
+        longest_session: 0,
+      };
+    } catch (error) {
+      throw new Error(error.message || "Failed to load sit-in summary");
+    }
+  },
+
+  fetchStudentTopLabs: async (idNumber) => {
+    try {
+      const response = await apiRequest("studentTopLabs", { idNumber });
+      return response.data || [];
+    } catch (error) {
+      console.error('[AUTH] Error (fetchStudentTopLabs):', error);
+      throw error;
+    }
+  },
+
+  // STUDENT - RESERVATIONS
+  // ======================
+  fetchStudentReservations: async (idNumber) => {
+    try {
+      const response = await apiRequest("studentReservations", { idNumber });
+      return response.data || [];
+    } catch (error) {
+      console.error('[AUTH] Error (fetchStudentReservations):', error);
+      throw error;
+    }
+  },
+
+  fetchLabAvailability: async () => {
+    try {
+      const response = await apiRequest("getLabAvailability", {});
+      return response.data || [];
+    } catch (error) {
+      console.error('[AUTH] Error (fetchLabAvailability):', error);
+      throw error;
+    }
+  },
+
+  fetchPCAvailability: async (labId, date, startTime) => {
+    try {
+      const user = authService.getUser();
+      const response = await apiRequest("getPCAvailability", {
+        lab_id: labId,
+        date: date,
+        startTime: startTime,
+        idNumber: user?.id_number
+      });
+      return response.data || [];
+    } catch (error) {
+      console.error('[AUTH] Error (fetchPCAvailability):', error);
+      throw error;
+    }
+  },
+
+  createReservation: async (formData) => {
+    try {
+      const user = authService.getUser();
+      const response = await apiRequest("createReservation", {
+        idNumber: user?.id_number,
+        lab_id: formData.labId,
+        pc_number: formData.pcNumber,
+        reservation_date: formData.date,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+      });
+      return response;
+    } catch (error) {
+      throw new Error(error.message || "Failed to create reservation");
+    }
+  },
+
+  deleteReservation: async (reservationId) => {
+    try {
+      const response = await apiRequest("deleteReservation", { reservation_id: reservationId });
+      return response;
+    } catch (error) {
+      throw new Error(error.message || "Failed to delete reservation");
+    }
+  },
+
   // =========================
   // STUDENT - CURRENT SESSION
   // =========================
@@ -502,4 +796,68 @@ export const authService = {
     }
   },
 
+  // =========================
+  // ADMIN - SOFTWARE MANAGEMENT
+  // =========================
+  adminGetSoftware: async () => {
+    try {
+      const response = await apiRequest("adminGetSoftware", {
+        adminId: authService.getAdminId(),
+      });
+      return response.records || [];
+    } catch (error) {
+      throw new Error(error.message || "Failed to load software applications");
+    }
+  },
+
+  adminAddSoftware: async (softwareData) => {
+    try {
+      return await apiRequest("adminAddSoftware", {
+        adminId: authService.getAdminId(),
+        ...softwareData,
+      });
+    } catch (error) {
+      throw new Error(error.message || "Failed to add software application");
+    }
+  },
+
+  adminEditSoftware: async (softwareData) => {
+    try {
+      return await apiRequest("adminEditSoftware", {
+        adminId: authService.getAdminId(),
+        ...softwareData,
+      });
+    } catch (error) {
+      throw new Error(error.message || "Failed to update software application");
+    }
+  },
+
+  adminDeleteSoftware: async (id) => {
+    try {
+      return await apiRequest("adminDeleteSoftware", {
+        adminId: authService.getAdminId(),
+        id,
+      });
+    } catch (error) {
+      throw new Error(error.message || "Failed to delete software application");
+    }
+  },
+
+  adminBulkAddSoftware: async (softwareList) => {
+    try {
+      return await apiRequest("adminBulkAddSoftware", {
+        adminId: authService.getAdminId(),
+        software_list: softwareList,
+      });
+    } catch (error) {
+      throw new Error(error.message || "Failed to import software applications");
+    }
+  },
+
+  // =========================
+  // DYNAMIC ACTION PATH RESOLVER
+  // =========================
+  getActionUrl: (actionFile) => {
+    return activeApiUrl.replace("authenticate.php", "actions/" + actionFile);
+  },
 };

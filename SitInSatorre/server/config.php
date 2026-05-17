@@ -1,4 +1,5 @@
 <?php
+date_default_timezone_set('Asia/Manila');
 
 define('ADMIN_ID', 'A-0000');
 define('ADMIN_PASSWORD', 'admin123!');

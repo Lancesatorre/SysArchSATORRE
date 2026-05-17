@@ -6,12 +6,13 @@ function handle_admin_start_session(mysqli $db, array $input): void {
     $student_id_number = esc($db, trim($input['studentIdNumber'] ?? ''));
     $room = esc($db, trim($input['room'] ?? ''));
     $purpose = esc($db, trim($input['purpose'] ?? ''));
+    $pc_number = esc($db, trim($input['pcNumber'] ?? ''));
 
     if ($student_id_number === '') {
         json_response(400, ['success' => false, 'message' => 'Student ID number is required']);
     }
-    if ($room === '' || $purpose === '') {
-        json_response(400, ['success' => false, 'message' => 'Room and purpose are required']);
+    if ($room === '' || $purpose === '' || $pc_number === '') {
+        json_response(400, ['success' => false, 'message' => 'Room, PC number and purpose are required']);
     }
 
     $student_query = "SELECT id, id_number, available_sessions FROM students WHERE id_number = '$student_id_number' LIMIT 1";
@@ -32,8 +33,8 @@ function handle_admin_start_session(mysqli $db, array $input): void {
         json_response(409, ['success' => false, 'message' => 'Student already has an active sit-in session']);
     }
 
-    $query = "INSERT INTO sit_in_sessions (student_id, student_id_number, room, purpose, status)
-              VALUES ({$student['id']}, '{$student['id_number']}', '$room', '$purpose', 'active')";
+    $query = "INSERT INTO sit_in_sessions (student_id, student_id_number, room, purpose, pc_number, status)
+              VALUES ({$student['id']}, '{$student['id_number']}', '$room', '$purpose', '$pc_number', 'active')";
     if (!$db->query($query)) {
         json_response(500, ['success' => false, 'message' => 'Failed to initiate sit-in session']);
     }
@@ -48,7 +49,7 @@ function handle_admin_start_session(mysqli $db, array $input): void {
 function handle_admin_current_sessions(mysqli $db, array $input): void {
     require_admin_access($input);
 
-    $query = "SELECT s.id, s.student_id, s.student_id_number, s.room, s.purpose, s.started_at,
+    $query = "SELECT s.id, s.student_id, s.student_id_number, s.room, s.purpose, s.started_at, s.pc_number,
                      st.first_name, st.last_name, st.course, st.year_level, st.available_sessions, st.profile_picture
               FROM sit_in_sessions s
               INNER JOIN students st ON st.id = s.student_id
@@ -80,7 +81,7 @@ function handle_admin_end_session(mysqli $db, array $input): void {
 
     $db->begin_transaction();
     try {
-        $session_query = "SELECT s.id, s.student_id, s.student_id_number, s.room, s.purpose, s.started_at,
+        $session_query = "SELECT s.id, s.student_id, s.student_id_number, s.reservation_id, s.room, s.purpose, s.started_at, s.pc_number,
                                  st.available_sessions
                           FROM sit_in_sessions s
                           INNER JOIN students st ON st.id = s.student_id
@@ -112,12 +113,18 @@ function handle_admin_end_session(mysqli $db, array $input): void {
         }
 
         $record_query = "INSERT INTO sit_in_records
-                        (session_id, student_id, student_id_number, room, purpose, started_at, ended_at, duration_minutes, status, admin_feedback, ended_by)
+                        (session_id, student_id, student_id_number, reservation_id, room, purpose, pc_number, started_at, ended_at, duration_minutes, status, admin_feedback, ended_by)
                         VALUES
-                        ($session_id, {$session['student_id']}, '{$session['student_id_number']}', '{$session['room']}', '{$session['purpose']}', '{$session['started_at']}', NOW(),
+                        ($session_id, {$session['student_id']}, '{$session['student_id_number']}', " . ($session['reservation_id'] ?? 'NULL') . ", '{$session['room']}', '{$session['purpose']}', " . ($session['pc_number'] ? "'" . $db->real_escape_string($session['pc_number']) . "'" : "NULL") . ", '{$session['started_at']}', NOW(),
                          TIMESTAMPDIFF(MINUTE, '{$session['started_at']}', NOW()), 'Completed', '$admin_feedback', '" . ADMIN_ID . "')";
         if (!$db->query($record_query)) {
             throw new Exception('Failed to write sit-in record');
+        }
+
+        // Update reservation if it exists
+        if (isset($session['reservation_id']) && $session['reservation_id']) {
+            $res_update = "UPDATE reservations SET status = 'completed' WHERE id = {$session['reservation_id']}";
+            $db->query($res_update);
         }
 
         $db->commit();
@@ -134,7 +141,7 @@ function handle_admin_end_session(mysqli $db, array $input): void {
 function handle_admin_sit_in_records(mysqli $db, array $input): void {
     require_admin_access($input);
 
-    $query = "SELECT r.id, r.session_id, r.student_id_number, r.room, r.purpose, r.started_at, r.ended_at, r.duration_minutes, r.status, r.admin_feedback, r.ended_by,
+    $query = "SELECT r.id, r.session_id, r.student_id_number, r.room, r.pc_number, r.purpose, r.started_at, r.ended_at, r.duration_minutes, r.status, r.admin_feedback, r.ended_by,
                      st.first_name, st.last_name, st.course, st.year_level, st.profile_picture
               FROM sit_in_records r
               LEFT JOIN students st ON st.id = r.student_id
