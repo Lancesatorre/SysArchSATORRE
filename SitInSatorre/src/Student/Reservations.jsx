@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, Clock, Plus, Trash2, ChevronDown, ChevronUp, AlertCircle, X, ExternalLink, CheckCircle, MoreHorizontal, ChevronRight, Search, Filter } from 'lucide-react';
 import ReservationWizard from './ReservationWizard';
 import { authService } from '../services/authService';
-import LoadingScreen from '../components/LoadingScreen';
+import LoadingScreen from '../Components/LoadingScreen';
 
 // ─── UTILITY FUNCTIONS ────────────────────────────────────────────────────────────────────────
 const formatDateTime = (value, includeTime = true) => {
@@ -348,7 +348,7 @@ export default function Reservations() {
               <p className="text-xs text-gray-500 leading-relaxed font-bold mb-5">
                 Are you sure you want to cancel your reservation for <span className="text-[#3c096c] underline">{pendingCancelReservation.pc_number || 'PC'}</span> in <span className="text-[#3c096c] font-black">{pendingCancelReservation.lab_name}</span>? This slot will be opened to other students.
               </p>
-              
+
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowCancelModal(false)}

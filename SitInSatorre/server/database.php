@@ -132,11 +132,9 @@ function initialize_schema(mysqli $db): void {
     $db->query("UPDATE labs SET lab_name = CONCAT('Lab ', lab_name) WHERE lab_name NOT LIKE 'Lab %'");
     $db->query("UPDATE sit_in_sessions SET room = CONCAT('Lab ', room) WHERE room NOT LIKE 'Lab %' AND room IS NOT NULL AND room != ''");
     $db->query("UPDATE sit_in_records SET room = CONCAT('Lab ', room) WHERE room NOT LIKE 'Lab %' AND room IS NOT NULL AND room != ''");
+}
 
-    // Populate old NULL pc_number records with sequential/random PC choices to fill data cleanly
-    $db->query("UPDATE sit_in_records SET pc_number = CONCAT('PC-', FLOOR(1 + RAND() * 30)) WHERE pc_number IS NULL OR pc_number = ''");
-    $db->query("UPDATE sit_in_sessions SET pc_number = CONCAT('PC-', FLOOR(1 + RAND() * 30)) WHERE pc_number IS NULL OR pc_number = ''");
-
+function seed_default_software(mysqli $db): void {
     // Seed default software if table is empty
     $software_count_res = $db->query("SELECT COUNT(*) as count FROM software");
     $software_count_row = $software_count_res ? $software_count_res->fetch_assoc() : null;

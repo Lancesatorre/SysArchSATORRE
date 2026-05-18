@@ -120,19 +120,7 @@ CREATE TABLE IF NOT EXISTS student_notifications (
     CONSTRAINT fk_notif_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
 );
 
--- Add default labs
-INSERT INTO labs (lab_name, floor, capacity) VALUES 
-('Lab 524', 5, 40),
-('Lab 526', 5, 38),
-('Lab 528', 5, 40),
-('Lab 530', 5, 36)
-ON DUPLICATE KEY UPDATE lab_name=lab_name;
 
--- Add a default test user (optional)
--- Password: password123
-INSERT INTO students (id_number, first_name, last_name, email, course, year_level, password) 
-VALUES ('20230001', 'Test', 'User', 'test@example.com', 'BSIT', 1, '$2y$10$YNMdYr.0wpvWk5a8a7MK4.lCJRvHLnFhHEcOQFvNwcT0C1yLsWuvi')
-ON DUPLICATE KEY UPDATE email=email;
 
 -- Create PCs table
 CREATE TABLE IF NOT EXISTS pcs (

@@ -11,7 +11,6 @@ header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 
 $db = connect_db();
-initialize_schema($db);
 
 try {
     $current_date = date('Y-m-d');

@@ -20,7 +20,7 @@ try {
             s.last_name,
             s.course,
             s.profile_picture,
-            COALESCE(ROUND(SUM(r.duration_minutes) / 60, 1), 0) as total_hours,
+            COALESCE(SUM(r.duration_minutes) / 60.0, 0) as total_hours,
             COUNT(r.id) as total_sessions
             FROM students s
             JOIN sit_in_records r ON s.id = r.student_id

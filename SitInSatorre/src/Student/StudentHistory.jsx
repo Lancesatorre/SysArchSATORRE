@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authService } from '../services/authService'
-import LoadingScreen from '../components/LoadingScreen'
+import LoadingScreen from '../Components/LoadingScreen'
 
 const formatDateTime = (value) => {
   if (!value) return '—'

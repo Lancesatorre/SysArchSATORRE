@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authService } from '../services/authService'
-import LoadingScreen from '../components/LoadingScreen'
+import LoadingScreen from '../Components/LoadingScreen'
 
 const Ico = ({ d, d2, cls = 'w-4 h-4' }) => (
   <svg className={cls} fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">

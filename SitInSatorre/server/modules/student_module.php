@@ -1017,11 +1017,11 @@ function handle_student_get_testimonial(mysqli $db, array $input): void {
         json_response(400, ['success' => false, 'message' => 'ID number is required']);
     }
 
-    // 1. Get the latest active testimonial (prioritizing pending/declined)
+    // 1. Get the latest active pending testimonial (active/editable)
     $active = null;
     $sql = "SELECT rating, feedback, status, created_at FROM testimonials 
-            WHERE student_id_number = ? 
-            ORDER BY CASE WHEN status IN ('pending', 'declined') THEN 0 ELSE 1 END, created_at DESC LIMIT 1";
+            WHERE student_id_number = ? AND status = 'pending'
+            ORDER BY created_at DESC LIMIT 1";
     $stmt = $db->prepare($sql);
     if ($stmt) {
         $stmt->bind_param('s', $id_number);
@@ -1029,6 +1029,26 @@ function handle_student_get_testimonial(mysqli $db, array $input): void {
         $result = $stmt->get_result();
         if ($row = $result->fetch_assoc()) {
             $active = [
+                'rating' => intval($row['rating']),
+                'feedback' => $row['feedback'],
+                'status' => $row['status'],
+                'created_at' => $row['created_at']
+            ];
+        }
+    }
+
+    // 1b. Get the overall latest testimonial (for status badge display)
+    $latest = null;
+    $sql_latest = "SELECT rating, feedback, status, created_at FROM testimonials 
+                   WHERE student_id_number = ? 
+                   ORDER BY created_at DESC LIMIT 1";
+    $stmt_latest = $db->prepare($sql_latest);
+    if ($stmt_latest) {
+        $stmt_latest->bind_param('s', $id_number);
+        $stmt_latest->execute();
+        $result_latest = $stmt_latest->get_result();
+        if ($row = $result_latest->fetch_assoc()) {
+            $latest = [
                 'rating' => intval($row['rating']),
                 'feedback' => $row['feedback'],
                 'status' => $row['status'],
@@ -1062,6 +1082,7 @@ function handle_student_get_testimonial(mysqli $db, array $input): void {
         'success' => true,
         'data' => [
             'active' => $active,
+            'latest' => $latest,
             'history' => $history
         ]
     ]);
@@ -1082,18 +1103,18 @@ function handle_student_submit_testimonial(mysqli $db, array $input): void {
         json_response(400, ['success' => false, 'message' => 'Feedback is required']);
     }
 
-    // Check if a PENDING or DECLINED testimonial exists that can be updated
-    $check_sql = "SELECT id FROM testimonials WHERE student_id_number = ? AND status IN ('pending', 'declined') LIMIT 1";
+    // Check if a PENDING testimonial exists that can be updated
+    $check_sql = "SELECT id FROM testimonials WHERE student_id_number = ? AND status = 'pending' LIMIT 1";
     $check_stmt = $db->prepare($check_sql);
     $check_stmt->bind_param('s', $id_number);
     $check_stmt->execute();
     $check_res = $check_stmt->get_result();
 
     if ($check_res->num_rows > 0) {
-        // Update the existing pending/declined testimonial and reset status to pending
+        // Update the existing pending testimonial
         $row = $check_res->fetch_assoc();
         $id = intval($row['id']);
-        $update_sql = "UPDATE testimonials SET rating = ?, feedback = ?, status = 'pending', created_at = CURRENT_TIMESTAMP WHERE id = ?";
+        $update_sql = "UPDATE testimonials SET rating = ?, feedback = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?";
         $update_stmt = $db->prepare($update_sql);
         $update_stmt->bind_param('isi', $rating, $feedback, $id);
         if ($update_stmt->execute()) {

@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom';
 import ccsLogo from '../assets/ccsmainlogo.png';
 import { authService } from '../services/authService';
-import LoadingScreen from '../components/LoadingScreen';
+import LoadingScreen from '../Components/LoadingScreen';
 
 export default function LoginPage() {
   const navigate = useNavigate();

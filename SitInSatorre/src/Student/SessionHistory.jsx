@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronUp, ChevronDown, Calendar, Clock, Zap, Award, Search, RotateCcw, Filter, ChevronLeft, ChevronRight, CheckCircle, Server, Star, MessageSquare } from 'lucide-react';
-import LoadingScreen from '../components/LoadingScreen';
+import LoadingScreen from '../Components/LoadingScreen';
 import { authService } from '../services/authService';
 
 // ─── UTILITY FUNCTIONS ────────────────────────────────────────────────────────────────────────

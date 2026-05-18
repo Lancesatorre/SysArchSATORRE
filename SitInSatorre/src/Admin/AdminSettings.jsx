@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import LoadingScreen from '../components/LoadingScreen';
+import LoadingScreen from '../Components/LoadingScreen';
 
 // ── Lightweight inline SVG icons ──────────────────────
 const IcoClock = () => (
@@ -154,7 +154,7 @@ export default function AdminSettings() {
   return (
     <div className="py-6 px-4 sm:px-6 min-h-[85vh] bg-transparent">
       <div className="max-w-[70rem] mx-auto flex flex-col gap-6">
-        
+
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-100 dark:border-zinc-800/80 pb-6">
           <div>
@@ -183,7 +183,7 @@ export default function AdminSettings() {
         <form onSubmit={handleSave} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Column 1 & 2: Main settings */}
           <div className="lg:col-span-2 flex flex-col gap-6">
-            
+
             {/* Lab Workstation Specifications */}
             <div className="bg-white dark:bg-zinc-900/90 border border-gray-100 dark:border-zinc-800/80 rounded-3xl p-6 shadow-sm flex flex-col gap-5">
               <div className="flex items-center gap-3 border-b border-gray-50 dark:border-zinc-800/50 pb-4">
@@ -305,7 +305,7 @@ export default function AdminSettings() {
 
               {/* Security Toggles */}
               <div className="flex flex-col gap-5 mt-2">
-                
+
                 {/* Toggle 1 */}
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
@@ -319,14 +319,12 @@ export default function AdminSettings() {
                   <button
                     type="button"
                     onClick={() => setWipeProfile(!wipeProfile)}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      wipeProfile ? 'bg-[#3c096c] dark:bg-purple-600' : 'bg-gray-200 dark:bg-zinc-800'
-                    }`}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${wipeProfile ? 'bg-[#3c096c] dark:bg-purple-600' : 'bg-gray-200 dark:bg-zinc-800'
+                      }`}
                   >
                     <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                        wipeProfile ? 'translate-x-5' : 'translate-x-0'
-                      }`}
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${wipeProfile ? 'translate-x-5' : 'translate-x-0'
+                        }`}
                     />
                   </button>
                 </div>
@@ -344,14 +342,12 @@ export default function AdminSettings() {
                   <button
                     type="button"
                     onClick={() => setDeepFreeze(!deepFreeze)}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      deepFreeze ? 'bg-[#3c096c] dark:bg-purple-600' : 'bg-gray-200 dark:bg-zinc-800'
-                    }`}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${deepFreeze ? 'bg-[#3c096c] dark:bg-purple-600' : 'bg-gray-200 dark:bg-zinc-800'
+                      }`}
                   >
                     <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                        deepFreeze ? 'translate-x-5' : 'translate-x-0'
-                      }`}
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${deepFreeze ? 'translate-x-5' : 'translate-x-0'
+                        }`}
                     />
                   </button>
                 </div>
@@ -369,14 +365,12 @@ export default function AdminSettings() {
                   <button
                     type="button"
                     onClick={() => setBlockUsb(!blockUsb)}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      blockUsb ? 'bg-[#3c096c] dark:bg-purple-600' : 'bg-gray-200 dark:bg-zinc-800'
-                    }`}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${blockUsb ? 'bg-[#3c096c] dark:bg-purple-600' : 'bg-gray-200 dark:bg-zinc-800'
+                      }`}
                   >
                     <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                        blockUsb ? 'translate-x-5' : 'translate-x-0'
-                      }`}
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${blockUsb ? 'translate-x-5' : 'translate-x-0'
+                        }`}
                     />
                   </button>
                 </div>
@@ -388,7 +382,7 @@ export default function AdminSettings() {
 
           {/* Column 3: Operational hours & Action */}
           <div className="flex flex-col gap-6">
-            
+
             {/* Laboratory Operational Hours & Term */}
             <div className="bg-white dark:bg-zinc-900/90 border border-gray-100 dark:border-zinc-800/80 rounded-3xl p-6 shadow-sm flex flex-col gap-5">
               <div className="flex items-center gap-3 border-b border-gray-50 dark:border-zinc-800/50 pb-4">

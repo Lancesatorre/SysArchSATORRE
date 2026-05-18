@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 
 import { useNavigate } from 'react-router-dom'
 import { authService } from '../services/authService'
-import LoadingScreen from '../components/LoadingScreen'
+import LoadingScreen from '../Components/LoadingScreen'
 
 // ── Icons ──────────────────────────────────────────────
 const Ico = ({ d, d2, cls = 'w-4 h-4' }) => (
@@ -11,12 +11,12 @@ const Ico = ({ d, d2, cls = 'w-4 h-4' }) => (
     {d2 && <path strokeLinecap="round" strokeLinejoin="round" d={d2} />}
   </svg>
 )
-const IcoWarning  = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-const IcoCheck    = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M5 13l4 4L19 7" />
-const IcoStop     = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" d2="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
-const IcoUsers    = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M17 20h5v-2a4 4 0 00-4-4H4a4 4 0 00-4 4v2h5M12 12a4 4 0 100-8 4 4 0 000 8z" />
-const IcoX        = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M6 18L18 6M6 6l12 12" />
-const IcoRefresh  = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.5-5.2M20 15a9 9 0 01-14.5 5.2" />
+const IcoWarning = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+const IcoCheck = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M5 13l4 4L19 7" />
+const IcoStop = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" d2="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+const IcoUsers = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M17 20h5v-2a4 4 0 00-4-4H4a4 4 0 00-4 4v2h5M12 12a4 4 0 100-8 4 4 0 000 8z" />
+const IcoX = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M6 18L18 6M6 6l12 12" />
+const IcoRefresh = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.5-5.2M20 15a9 9 0 01-14.5 5.2" />
 const PAGE_SIZE = 8
 
 // ── Avatar: profile picture with initials fallback ─────
@@ -118,14 +118,14 @@ function EndSessionModal({ session, onConfirm, onClose, busy }) {
 
 export default function CurrentSessions() {
   const navigate = useNavigate()
-  const [loading, setLoading]         = useState(true)
-  const [busy, setBusy]               = useState(false)
-  const [sessions, setSessions]       = useState([])
-  const [search, setSearch]           = useState('')
-  const [error, setError]             = useState('')
-  const [success, setSuccess]         = useState('')
-  const [endTarget, setEndTarget]     = useState(null)
-  const [page, setPage]               = useState(1)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [sessions, setSessions] = useState([])
+  const [search, setSearch] = useState('')
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [endTarget, setEndTarget] = useState(null)
+  const [page, setPage] = useState(1)
 
   const filteredSessions = sessions.filter(s => {
     const q = search.trim().toLowerCase()
@@ -150,14 +150,14 @@ export default function CurrentSessions() {
   useEffect(() => {
     const u = authService.getUser?.() || null
     if (!u || u.role !== 'admin') { navigate('/login'); return }
-    ;(async () => {
+    ; (async () => {
       try { await load() }
       catch (err) { setError(err.message || 'Failed to load current sessions') }
       finally { setLoading(false) }
     })()
 
     const intervalId = setInterval(() => {
-      load().catch(() => {})
+      load().catch(() => { })
     }, 10000)
 
     return () => clearInterval(intervalId)
@@ -326,11 +326,10 @@ export default function CurrentSessions() {
                     </td>
                     {/* Remaining */}
                     <td className="px-5 py-3.5 border-b border-gray-50">
-                      <span className={`text-xs font-black px-2.5 py-1 rounded-full border ${
-                        Number(s.available_sessions) > 0
-                          ? 'bg-green-50 text-green-600 border-green-200'
-                          : 'bg-red-50 text-red-500 border-red-200'
-                      }`}>
+                      <span className={`text-xs font-black px-2.5 py-1 rounded-full border ${Number(s.available_sessions) > 0
+                        ? 'bg-green-50 text-green-600 border-green-200'
+                        : 'bg-red-50 text-red-500 border-red-200'
+                        }`}>
                         {s.available_sessions} left
                       </span>
                     </td>

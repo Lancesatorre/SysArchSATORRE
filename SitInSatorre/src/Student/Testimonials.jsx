@@ -7,6 +7,7 @@ export default function Testimonials() {
   const [hoveredStar, setHoveredStar] = useState(0);
   const [feedback, setFeedback] = useState('');
   const [currentTestimonial, setCurrentTestimonial] = useState(null);
+  const [latestTestimonial, setLatestTestimonial] = useState(null);
   const [history, setHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -19,17 +20,15 @@ export default function Testimonials() {
       const result = await authService.studentGetTestimonial(user.id_number);
       if (result.success && result.data) {
         const active = result.data.active;
+        const latest = result.data.latest || active;
         const historyList = result.data.history || [];
 
         setCurrentTestimonial(active);
+        setLatestTestimonial(latest);
         setHistory(historyList);
 
-        if (active && active.status === 'approved') {
-          // If approved, don't pre-fill the form so the student can submit a fresh testimonial!
-          setRating(5);
-          setFeedback('');
-        } else if (active) {
-          // If pending or declined, pre-fill so they can update it!
+        if (active) {
+          // If pending, pre-fill so they can update it!
           setRating(active.rating);
           setFeedback(active.feedback);
         } else {
@@ -38,6 +37,7 @@ export default function Testimonials() {
         }
       } else {
         setCurrentTestimonial(null);
+        setLatestTestimonial(null);
         setHistory([]);
       }
     } catch (error) {
@@ -134,7 +134,7 @@ export default function Testimonials() {
               <div className="text-left">
                 <p className="text-[0.62rem] text-purple-200/50 font-black uppercase tracking-widest leading-none">My Status</p>
                 <div className="mt-1.5">
-                  {currentTestimonial ? getStatusBadge(currentTestimonial.status) : (
+                  {latestTestimonial ? getStatusBadge(latestTestimonial.status) : (
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 border border-white/10 text-white/80 rounded-full text-[0.68rem] font-bold">
                       No Submission
                     </span>

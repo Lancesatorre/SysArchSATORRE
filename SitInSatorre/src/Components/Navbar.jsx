@@ -371,7 +371,7 @@ export default function Navbar() {
     };
   }, [isLoggedIn, user?.id_number, user?.role]);
 
-  // Admin: Poll pending reservation + testimonial counts every 30 seconds
+  // Admin: Poll pending reservation + testimonial counts every 5 seconds for live real-time updates
   useEffect(() => {
     if (!isLoggedIn || user?.role !== 'admin') return undefined;
 
@@ -382,7 +382,7 @@ export default function Navbar() {
 
     handleUpdate();
 
-    const intervalId = setInterval(handleUpdate, 30000);
+    const intervalId = setInterval(handleUpdate, 5000);
     window.addEventListener('pendingCountChanged', handleUpdate);
 
     return () => {

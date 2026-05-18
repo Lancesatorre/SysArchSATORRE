@@ -169,11 +169,11 @@ export default function ReservationWizard({ onClose, onSuccess }) {
 
         for (const res of reservationsToCheck) {
           const useSession = res.is_session_active && (res.session_started_date_raw || res.session_started_date) && (res.session_started_time_raw || res.session_started_time);
-          const exDateRaw = useSession 
-            ? res.session_started_date_raw 
+          const exDateRaw = useSession
+            ? res.session_started_date_raw
             : (res.reservation_date_raw || res.reserved_date_raw || res.reservation_date);
-          const exTimeRaw = useSession 
-            ? res.session_started_time_raw 
+          const exTimeRaw = useSession
+            ? res.session_started_time_raw
             : (res.reservation_time_raw || res.reserved_time_raw || res.time_from || res.reservation_time);
 
           if (exDateRaw && exTimeRaw) {
@@ -280,15 +280,15 @@ export default function ReservationWizard({ onClose, onSuccess }) {
       component: <Step3TimeSelection formData={formData} setFormData={setFormData} selectedPCReservation={selectedPCReservation} studentReservations={studentReservations} />,
       isValid: (() => {
         if (!formData.date || !formData.startTime) return false;
-        
+
         const [hours, minutes] = formData.startTime.split(':').map(Number);
         const totalMinutes = hours * 60 + minutes;
         if (totalMinutes < 450 || totalMinutes > 1230) return false;
-        
+
         const now = new Date();
         const [sYear, sMonth, sDay] = formData.date.split('-').map(Number);
         const selectedDate = new Date(sYear, sMonth - 1, sDay, 0, 0, 0, 0);
-        
+
         const isToday = selectedDate.toDateString() === now.toDateString();
         if (isToday) {
           const [hours, minutes] = formData.startTime.split(':').map(Number);
@@ -310,11 +310,11 @@ export default function ReservationWizard({ onClose, onSuccess }) {
 
           for (const res of reservationsToCheck) {
             const useSession = res.is_session_active && (res.session_started_date_raw || res.session_started_date) && (res.session_started_time_raw || res.session_started_time);
-            const exDateRaw = useSession 
-              ? res.session_started_date_raw 
+            const exDateRaw = useSession
+              ? res.session_started_date_raw
               : (res.reservation_date_raw || res.reserved_date_raw || res.reservation_date);
-            const exTimeRaw = useSession 
-              ? res.session_started_time_raw 
+            const exTimeRaw = useSession
+              ? res.session_started_time_raw
               : (res.reservation_time_raw || res.reserved_time_raw || res.time_from || res.reservation_time);
 
             if (exDateRaw && exTimeRaw) {
@@ -350,7 +350,7 @@ export default function ReservationWizard({ onClose, onSuccess }) {
             }
           }
         }
-        
+
         return true;
       })(),
     },
@@ -450,7 +450,7 @@ export default function ReservationWizard({ onClose, onSuccess }) {
 const Step1LabSelection = ({ labs, formData, setFormData, onNext }) => {
   const getLabSpecs = (labName) => {
     const name = labName.toLowerCase();
-    
+
     const themeStyles = {
       fuchsia: {
         accent: 'text-fuchsia-600',
@@ -526,7 +526,7 @@ const Step1LabSelection = ({ labs, formData, setFormData, onNext }) => {
         const isSelected = formData.labId === lab.id;
         const isInactive = lab.status !== 'active';
         const isFull = !isInactive && parseInt(lab.available_pcs) === 0;
-        
+
         // Calculate utilization rate (how many PCs are currently occupied or reserved)
         const total = parseInt(lab.total_pcs) || 1;
         const avail = parseInt(lab.available_pcs) || 0;
@@ -588,10 +588,10 @@ const Step1LabSelection = ({ labs, formData, setFormData, onNext }) => {
                 <span className={`px-2 py-0.5 rounded-md text-[0.55rem] font-black uppercase tracking-wider border
                   ${isSelected
                     ? 'bg-white/10 text-white border-white/20'
-                    : isInactive 
-                      ? 'bg-rose-50 text-rose-600 border-rose-100' 
-                      : isFull 
-                        ? 'bg-amber-50 text-amber-600 border-amber-100' 
+                    : isInactive
+                      ? 'bg-rose-50 text-rose-600 border-rose-100'
+                      : isFull
+                        ? 'bg-amber-50 text-amber-600 border-amber-100'
                         : `${theme.badge}`}`}>
                   {isInactive ? 'Inactive' : isFull ? 'Full' : 'Open'}
                 </span>
@@ -718,7 +718,7 @@ const Step3TimeSelection = ({ formData, setFormData, selectedPCReservation, stud
 
   const isConflict = (() => {
     if (!formData.date || !formData.startTime || !selectedPCReservation) return false;
-    
+
     try {
       const reservationsToCheck = (selectedPCReservation.all_reservations && selectedPCReservation.all_reservations.length > 0)
         ? selectedPCReservation.all_reservations
@@ -730,11 +730,11 @@ const Step3TimeSelection = ({ formData, setFormData, selectedPCReservation, stud
 
       for (const res of reservationsToCheck) {
         const useSession = res.is_session_active && (res.session_started_date_raw || res.session_started_date) && (res.session_started_time_raw || res.session_started_time);
-        const exDateRaw = useSession 
-          ? res.session_started_date_raw 
+        const exDateRaw = useSession
+          ? res.session_started_date_raw
           : (res.reservation_date_raw || res.reserved_date_raw || res.reservation_date);
-        const exTimeRaw = useSession 
-          ? res.session_started_time_raw 
+        const exTimeRaw = useSession
+          ? res.session_started_time_raw
           : (res.reservation_time_raw || res.reserved_time_raw || res.time_from || res.reservation_time);
 
         if (!exDateRaw || !exTimeRaw) continue;
@@ -899,8 +899,8 @@ const Step3TimeSelection = ({ formData, setFormData, selectedPCReservation, stud
                     type="button"
                     onClick={() => setFilterType(tab.id)}
                     className={`px-3.5 py-1.5 rounded-xl text-[0.6rem] font-black uppercase tracking-wider transition-all border shrink-0
-                      ${isActive 
-                        ? 'bg-[#3c096c] border-[#3c096c] text-white shadow-md shadow-[#3c096c]/20' 
+                      ${isActive
+                        ? 'bg-[#3c096c] border-[#3c096c] text-white shadow-md shadow-[#3c096c]/20'
                         : 'bg-gray-50 border-gray-100 text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                       }`}
                   >
@@ -929,26 +929,26 @@ const Step3TimeSelection = ({ formData, setFormData, selectedPCReservation, stud
                     return true;
                   })
                   .map((res, index) => {
-                    const badgeColor = res.is_session_active 
-                      ? 'bg-orange-50 text-orange-700 border-orange-200' 
-                      : res.reserved_by_me 
-                        ? 'bg-blue-50 text-blue-700 border-blue-200' 
+                    const badgeColor = res.is_session_active
+                      ? 'bg-orange-50 text-orange-700 border-orange-200'
+                      : res.reserved_by_me
+                        ? 'bg-blue-50 text-blue-700 border-blue-200'
                         : 'bg-purple-50 text-[#3c096c] border-[#3c096c]/20';
 
-                    const badgeText = res.is_session_active 
-                      ? 'Active Session' 
-                      : res.reserved_by_me 
-                        ? 'Your Booking' 
+                    const badgeText = res.is_session_active
+                      ? 'Active Session'
+                      : res.reserved_by_me
+                        ? 'Your Booking'
                         : 'Reserved Slot';
 
                     return (
-                      <div 
+                      <div
                         key={index}
                         className={`border rounded-2xl p-4 flex items-start gap-3 transition-all
-                          ${res.is_session_active 
-                            ? 'border-orange-200 bg-orange-50/30' 
-                            : res.reserved_by_me 
-                              ? 'border-blue-200 bg-blue-50/20' 
+                          ${res.is_session_active
+                            ? 'border-orange-200 bg-orange-50/30'
+                            : res.reserved_by_me
+                              ? 'border-blue-200 bg-blue-50/20'
                               : 'border-gray-100 bg-gray-50/50'
                           }`}
                       >
@@ -1024,7 +1024,7 @@ const Step3TimeSelection = ({ formData, setFormData, selectedPCReservation, stud
               );
             }
           }
-        } catch (e) {}
+        } catch (e) { }
         return null;
       })()}
 
@@ -1131,13 +1131,13 @@ const Step2PCSelection = ({ availablePCs, formData, setFormData, loading, onShow
                         ${isDisabled ? 'bg-red-50/30 border-red-100 text-red-200 cursor-not-allowed' :
                           isMaintenance ? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed' :
                             isSelected ? 'bg-[#3c096c] text-white border-[#3c096c] shadow-md shadow-[#3c096c]/20' :
-                            isSessionActive ? 'bg-[#ff9100] text-white border-[#ff9100] hover:bg-[#e07a00] transition-all transform shadow-md shadow-[#ff9100]/20' :
-                              isMine && isReservedSlot && slotStatus === 'approved' ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20' :
-                                isMine && isReservedSlot && slotStatus === 'pending' ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 shadow-sm' :
-                                  isMine ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 shadow-sm' :
-                                    isReservedSlot && slotStatus === 'approved' ? 'bg-[#5a189a] text-white border-[#5a189a] hover:bg-[#3c096c] transition-all transform shadow-md shadow-[#5a189a]/20' :
-                                      isReservedSlot && slotStatus === 'pending' ? 'bg-[#5a189a]/10 border-[#5a189a]/30 text-[#5a189a] hover:bg-[#5a189a]/20 shadow-sm' :
-                                        isReserved ? 'bg-[#5a189a]/10 border-[#5a189a]/30 text-[#5a189a] hover:border-[#5a189a]/60 shadow-sm' :
+                              isSessionActive ? 'bg-[#ff9100] text-white border-[#ff9100] hover:bg-[#e07a00] transition-all transform shadow-md shadow-[#ff9100]/20' :
+                                isMine && isReservedSlot && slotStatus === 'approved' ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20' :
+                                  isMine && isReservedSlot && slotStatus === 'pending' ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 shadow-sm' :
+                                    isMine ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 shadow-sm' :
+                                      isReservedSlot && slotStatus === 'approved' ? 'bg-[#5a189a] text-white border-[#5a189a] hover:bg-[#3c096c] transition-all transform shadow-md shadow-[#5a189a]/20' :
+                                        isReservedSlot && slotStatus === 'pending' ? 'bg-[#5a189a]/10 border-[#5a189a]/30 text-[#5a189a] hover:bg-[#5a189a]/20 shadow-sm' :
+                                          isReserved ? 'bg-[#5a189a]/10 border-[#5a189a]/30 text-[#5a189a] hover:border-[#5a189a]/60 shadow-sm' :
                                             'text-gray-600 border-gray-100 hover:bg-gray-50 hover:text-[#3c096c] hover:border-[#3c096c]/30'}`}
                     >
                       <div className="relative">
@@ -1147,11 +1147,11 @@ const Step2PCSelection = ({ availablePCs, formData, setFormData, loading, onShow
                           className={isDisabled ? 'text-red-100' :
                             isMaintenance ? 'text-gray-200' :
                               isSelected ? 'text-white' :
-                              isSessionActive ? 'text-white/80' :
-                                isMine && isReservedSlot && slotStatus === 'approved' ? 'text-white' :
-                                  isMine ? 'text-blue-500' :
-                                    isReservedSlot && slotStatus === 'approved' ? 'text-white/60' :
-                                      isReserved || isReservedSlot ? 'text-[#5a189a]/40' :
+                                isSessionActive ? 'text-white/80' :
+                                  isMine && isReservedSlot && slotStatus === 'approved' ? 'text-white' :
+                                    isMine ? 'text-blue-500' :
+                                      isReservedSlot && slotStatus === 'approved' ? 'text-white/60' :
+                                        isReserved || isReservedSlot ? 'text-[#5a189a]/40' :
                                           pc.available ? 'text-gray-700' : 'text-gray-200'}
                         />
                         {pc.all_reservations && pc.all_reservations.length > 1 ? (
@@ -1179,13 +1179,13 @@ const Step2PCSelection = ({ availablePCs, formData, setFormData, loading, onShow
                         ${isDisabled ? 'text-red-200' :
                           isMaintenance ? 'text-gray-300' :
                             isSelected ? 'text-white' :
-                            isSessionActive ? 'text-white' :
-                              isMine && isReservedSlot && slotStatus === 'approved' ? 'text-white' :
-                                isMine ? 'text-blue-600' :
-                                  isReservedSlot && slotStatus === 'approved' ? 'text-white' :
-                                    isReservedSlot && slotStatus === 'pending' ? 'text-[#5a189a]' :
-                                      isReserved ? 'text-[#5a189a]' :
-                                        'text-gray-500'}`}>
+                              isSessionActive ? 'text-white' :
+                                isMine && isReservedSlot && slotStatus === 'approved' ? 'text-white' :
+                                  isMine ? 'text-blue-600' :
+                                    isReservedSlot && slotStatus === 'approved' ? 'text-white' :
+                                      isReservedSlot && slotStatus === 'pending' ? 'text-[#5a189a]' :
+                                        isReserved ? 'text-[#5a189a]' :
+                                          'text-gray-500'}`}>
                         {isSessionActive ? 'ACTIVE' : isMine ? 'YOURS' : `PC ${pcLabel.padStart(2, '0')}`}
                       </span>
                     </button>
