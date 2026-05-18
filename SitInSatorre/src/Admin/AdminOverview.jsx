@@ -18,10 +18,11 @@ const IcoShield = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M9 12l2 2 4-4m5.618
 const IcoChevron = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M9 5l7 7-7 7" />
 const IcoMonitor = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
 const IcoActivity = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+const IcoRoom = ({ cls = 'w-4 h-4' }) => <Ico cls={cls} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
 
 export default function AdminOverview() {
   const navigate = useNavigate()
-  const [stats, setStats] = useState({ active: 0, records: 0 })
+  const [stats, setStats] = useState({ active: 0, records: 0, students: 0 })
   const [loading, setLoading] = useState(true)
   const [records, setRecords] = useState([])
   const [sessions, setSessions] = useState([])
@@ -37,10 +38,11 @@ export default function AdminOverview() {
   const loadData = async (showLoading = false) => {
     if (showLoading) setLoading(true)
     try {
-      const [sessionsRes, recordsRes, reservationsRes] = await Promise.allSettled([
+      const [sessionsRes, recordsRes, reservationsRes, studentsRes] = await Promise.allSettled([
         authService.adminCurrentSessions?.() || Promise.resolve([]),
         authService.adminSitInRecords?.() || Promise.resolve([]),
-        authService.adminGetReservations?.() || Promise.resolve({ success: false })
+        authService.adminGetReservations?.() || Promise.resolve({ success: false }),
+        authService.adminListStudents?.() || Promise.resolve([])
       ])
 
       const sessionsVal = sessionsRes.status === 'fulfilled' && Array.isArray(sessionsRes.value)
@@ -52,8 +54,11 @@ export default function AdminOverview() {
       const labsVal = reservationsRes.status === 'fulfilled' && reservationsRes.value?.success
         ? (reservationsRes.value.data?.labs || [])
         : []
+      const studentsVal = studentsRes.status === 'fulfilled' && Array.isArray(studentsRes.value)
+        ? studentsRes.value
+        : []
 
-      setStats({ active: sessionsVal.length, records: recordsVal.length })
+      setStats({ active: sessionsVal.length, records: recordsVal.length, students: studentsVal.length })
       setRecords(recordsVal)
       setSessions(sessionsVal)
       setLabsData(labsVal)
@@ -183,6 +188,7 @@ export default function AdminOverview() {
   };
 
   const formatDuration = (mins) => {
+    if (mins === null || mins === undefined || isNaN(mins) || Number(mins) <= 0) return '-';
     if (mins >= 60) {
       const hrs = Math.floor(mins / 60);
       const remainingMins = mins % 60;
@@ -253,7 +259,6 @@ export default function AdminOverview() {
             </div>
             <div className="flex items-end gap-2 flex-col">
               <span className="flex items-center gap-2 bg-white/08 border border-white/10 rounded-full px-4 py-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
                 <span className="text-xs font-semibold text-white/70">System Online</span>
               </span>
               <span className="bg-white/08 border border-white/10 rounded-xl px-4 py-2 text-xs font-bold text-white/60">
@@ -264,20 +269,25 @@ export default function AdminOverview() {
         </div>
 
         {/* ── STAT ROW ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {[
-            { label: 'Active Sessions', value: loading ? '—' : stats.active, icon: <IcoPlay />, accent: true },
-            { label: 'Total Records', value: loading ? '—' : stats.records, icon: <IcoList />, orange: true },
-            { label: 'Total Labs', value: loading ? '—' : LABS.length, icon: <IcoMonitor />, accent: false },
-            { label: 'Total PCs', value: loading ? '—' : LABS.reduce((sum, lab) => sum + lab.capacity, 0), icon: <IcoUsers />, accent: false },
-          ].map(({ label, value, icon, accent, orange }) => (
+            { label: 'Active Sessions', value: loading ? '-' : stats.active, icon: <IcoPlay />, accent: true },
+            { label: 'Total Records', value: loading ? '-' : stats.records, icon: <IcoList />, orange: true },
+            { label: 'Total Students', value: loading ? '-' : stats.students, icon: <IcoUsers />, teal: true },
+            { label: 'Total Labs', value: loading ? '-' : LABS.length, icon: <IcoRoom />, accent: false },
+            { label: 'Total PCs', value: loading ? '-' : LABS.reduce((sum, lab) => sum + lab.capacity, 0), icon: <IcoMonitor />, accent: false },
+          ].map(({ label, value, icon, accent, orange, teal }) => (
             <div key={label} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${orange ? 'bg-[#ff9100]/10' : accent ? 'bg-[#3c096c]/08' : 'bg-gray-100'
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${orange ? 'bg-[#ff9100]/10' : accent ? 'bg-[#3c096c]/08' : teal ? 'bg-emerald-500/10' : 'bg-gray-100'
                 }`}>
-                {React.cloneElement(icon, { cls: `w-3.5 h-3.5 ${orange ? 'text-[#ff9100]' : accent ? 'text-[#3c096c]' : 'text-gray-500'}` })}
+                {React.cloneElement(icon, {
+                  cls: `w-3.5 h-3.5 ${orange ? 'text-[#ff9100]' : accent ? 'text-[#3c096c]' : teal ? 'text-emerald-600' : 'text-gray-500'
+                    }`
+                })}
               </div>
               <div>
-                <p className={`text-3xl font-black leading-none ${orange ? 'text-[#ff9100]' : accent ? 'text-[#3c096c]' : 'text-[#1a0030]'}`}>{value}</p>
+                <p className={`text-3xl font-black leading-none ${orange ? 'text-[#ff9100]' : accent ? 'text-[#3c096c]' : teal ? 'text-emerald-600' : 'text-[#1a0030]'
+                  }`}>{value}</p>
                 <p className="text-[0.6rem] font-black uppercase tracking-[0.14em] text-gray-400 mt-1.5">{label}</p>
               </div>
             </div>
@@ -415,7 +425,7 @@ export default function AdminOverview() {
                     if (!activeSlice) return null;
                     return (
                       <div className="flex flex-col items-center justify-center mt-1.5">
-                        <span 
+                        <span
                           className="text-[0.62rem] sm:text-[0.65rem] font-black uppercase tracking-[0.24em] px-3 py-1 rounded-full mb-1.5 transition-all duration-300 border"
                           style={{
                             backgroundColor: 'rgba(255, 145, 0, 0.08)',

@@ -17,7 +17,8 @@ const formatDateTime = (value) => {
 }
 
 const formatDuration = (minutes) => {
-  const total = Number(minutes || 0)
+  if (minutes === null || minutes === undefined || isNaN(minutes) || Number(minutes) <= 0) return '-'
+  const total = Number(minutes)
   const h = Math.floor(total / 60)
   const m = total % 60
   if (h <= 0) return `${m}m`
@@ -148,11 +149,11 @@ export default function StudentHistory() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
             <p className="text-[0.58rem] font-black uppercase tracking-widest text-gray-400">Total Sessions</p>
-            <p className="text-3xl font-black text-[#3c096c] mt-1">{summary.total}</p>
+            <p className="text-3xl font-black text-[#3c096c] mt-1">{(summary.total === null || summary.total === undefined || isNaN(summary.total) || summary.total <= 0) ? '-' : summary.total}</p>
           </div>
           <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
             <p className="text-[0.58rem] font-black uppercase tracking-widest text-gray-400">This Month</p>
-            <p className="text-3xl font-black text-[#ff9100] mt-1">{summary.thisMonth}</p>
+            <p className="text-3xl font-black text-[#ff9100] mt-1">{(summary.thisMonth === null || summary.thisMonth === undefined || isNaN(summary.thisMonth) || summary.thisMonth <= 0) ? '-' : summary.thisMonth}</p>
           </div>
           <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
             <p className="text-[0.58rem] font-black uppercase tracking-widest text-gray-400">Total Time</p>

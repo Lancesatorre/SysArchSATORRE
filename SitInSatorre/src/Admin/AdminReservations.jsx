@@ -368,9 +368,11 @@ export default function AdminReservations() {
   const [historyStatusFilter, setHistoryStatusFilter] = useState('all');
   const [historyPage, setHistoryPage] = useState(1);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (showLoadingScreen = false) => {
     try {
-      setLoading(true);
+      if (showLoadingScreen) {
+        setLoading(true);
+      }
       const res = await authService.adminGetReservations();
       if (res.success) {
         setData(res.data || { pending: [], logs: [], labs: [] });
@@ -378,7 +380,9 @@ export default function AdminReservations() {
     } catch (err) {
       setError(err.message || 'Failed to fetch reservations.');
     } finally {
-      setLoading(false);
+      if (showLoadingScreen) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -398,7 +402,13 @@ export default function AdminReservations() {
       navigate('/login');
       return;
     }
-    fetchData();
+    fetchData(true);
+
+    const intervalId = setInterval(() => {
+      fetchData(false).catch(() => { });
+    }, 10000);
+
+    return () => clearInterval(intervalId);
   }, [navigate, fetchData]);
 
   const handleLabClick = async (lab) => {
@@ -1062,49 +1072,32 @@ export default function AdminReservations() {
 
 
   const handleToggleLabStatus = async (e, labId, currentStatus) => {
-
-
-
     e.stopPropagation(); // Prevent opening lab grid
-
-
-
     const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
 
-
+    // Optimistically update the UI status immediately
+    setData(prev => {
+      const updatedLabs = (prev?.labs || []).map(lab => {
+        if (lab.id === labId) {
+          return { ...lab, status: newStatus };
+        }
+        return lab;
+      });
+      return { ...prev, labs: updatedLabs };
+    });
 
     try {
-
-
-
       const res = await authService.adminUpdateLabStatus(labId, newStatus);
-
-
-
       if (res.success) {
-
-
-
-        fetchData();
-
-
-
+        await fetchData(false);
+      } else {
+        await fetchData(false);
+        alert('Failed to update lab status');
       }
-
-
-
     } catch (err) {
-
-
-
+      await fetchData(false);
       alert('Failed to update lab status');
-
-
-
     }
-
-
-
   };
 
 
@@ -3823,55 +3816,45 @@ export default function AdminReservations() {
 
               <div className="flex gap-6">
 
-
-
                 <div className="flex items-center gap-2">
-
-
 
                   <div className="w-3 h-3 rounded-full bg-green-500 shadow-sm shadow-green-200" />
 
-
-
                   <span className="text-[0.65rem] font-black uppercase tracking-wider text-gray-500">Available</span>
-
-
 
                 </div>
 
+                <div className="flex items-center gap-2">
 
+                  <div className="w-3 h-3 rounded-full bg-[#ff9100] shadow-sm shadow-orange-200" />
+
+                  <span className="text-[0.65rem] font-black uppercase tracking-wider text-gray-500">Active</span>
+
+                </div>
 
                 <div className="flex items-center gap-2">
 
+                  <div className="w-3 h-3 rounded-full bg-[#3b82f6] shadow-sm shadow-[#3b82f6]/20" />
 
+                  <span className="text-[0.65rem] font-black uppercase tracking-wider text-gray-500">Reserved</span>
+
+                </div>
+
+                <div className="flex items-center gap-2">
 
                   <div className="w-3 h-3 rounded-full bg-red-400 shadow-sm shadow-red-200" />
 
-
-
                   <span className="text-[0.65rem] font-black uppercase tracking-wider text-gray-500">Disabled</span>
 
-
-
                 </div>
-
-
 
                 <div className="flex items-center gap-2">
 
-
-
                   <div className="w-3 h-3 rounded-full bg-[#3c096c] shadow-sm shadow-[#3c096c]/20" />
-
-
 
                   <span className="text-[0.65rem] font-black uppercase tracking-wider text-gray-500">Maintenance</span>
 
-
-
                 </div>
-
-
 
               </div>
 
@@ -4893,12 +4876,9 @@ function PCGrid({ pcs, onPCClick, searchTerm, selectedIds = [], isBulkMode = fal
 
 
             const isSelected = selectedIds.includes(pc.id);
-
-
-
-
-
-
+            const hasReservations = pc.all_reservations && pc.all_reservations.length > 0;
+            const isActiveSession = pc.all_reservations && pc.all_reservations.some(r => r.status === 'active');
+            const reservationCount = pc.all_reservations ? pc.all_reservations.length : 0;
 
             return (
 
@@ -4925,25 +4905,12 @@ function PCGrid({ pcs, onPCClick, searchTerm, selectedIds = [], isBulkMode = fal
 
 
                 className={`flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl transition-all duration-300 w-22 border group relative select-none
-
-
-
                   ${isSelected ? 'border-green-500 ring-2 ring-green-500/20 z-10 scale-105 bg-green-50/10' :
-
-
-
                     isDisabled ? 'bg-red-50/50 border-red-300 text-red-500' :
-
-
-
                       isMaintenance ? 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-950/20 dark:border-purple-800/40 dark:text-purple-400' :
-
-
-
-                        'bg-white text-gray-600 border-gray-100 hover:bg-green-50 hover:text-green-600 hover:border-green-400 hover:scale-105 shadow-xs hover:shadow-md'}`}
-
-
-
+                        isActiveSession ? 'bg-[#ff9100]/10 border-[#ff9100]/40 text-[#ff9100] shadow-sm shadow-[#ff9100]/10' :
+                          hasReservations ? 'bg-[#3b82f6]/10 border-[#3b82f6]/40 text-[#3b82f6] shadow-sm shadow-[#3b82f6]/10' :
+                            'bg-white text-gray-600 border-gray-100 hover:bg-green-50 hover:text-green-600 hover:border-green-400 hover:scale-105 shadow-xs hover:shadow-md'}`}
               >
 
 
@@ -4980,39 +4947,27 @@ function PCGrid({ pcs, onPCClick, searchTerm, selectedIds = [], isBulkMode = fal
 
 
 
+                {reservationCount > 1 && (
+                  <div className={`absolute -top-1.5 -right-1.5 min-w-[15px] h-[15px] px-[4px] rounded-full border border-white flex items-center justify-center shadow-sm z-10 ${isActiveSession ? 'bg-[#ff9100]' : 'bg-[#3b82f6]'}`}>
+                    <span className="text-[0.5rem] font-black text-white leading-none tracking-tighter">
+                      {reservationCount}
+                    </span>
+                  </div>
+                )}
+
                 <Monitor
-
-
-
                   size={32}
-
-
-
                   strokeWidth={2}
-
-
-
-                  className={`transition-colors ${isSelected ? 'text-green-500' : isDisabled ? 'text-red-400' : isMaintenance ? 'text-purple-500 dark:text-purple-400/80' : 'text-gray-700 group-hover:text-green-500'}`}
-
-
-
+                  className={`transition-colors ${isSelected ? 'text-green-500' : isDisabled ? 'text-red-400' : isMaintenance ? 'text-purple-500 dark:text-purple-400/80' : isActiveSession ? 'text-[#ff9100]' : hasReservations ? 'text-[#3b82f6]' : 'text-gray-700 group-hover:text-green-500'}`}
                 />
 
 
 
-                <span className={`text-[0.7rem] font-black tracking-tight ${isSelected ? 'text-green-600' : isDisabled ? 'text-red-500' : isMaintenance ? 'text-purple-700 dark:text-purple-400' : 'text-gray-500 group-hover:text-green-600'}`}>
-
-
-
+                <span className={`text-[0.7rem] font-black tracking-tight ${isSelected ? 'text-green-600' : isDisabled ? 'text-red-500' : isMaintenance ? 'text-purple-700 dark:text-purple-400' : isActiveSession ? 'text-[#ff9100]' : hasReservations ? 'text-[#3b82f6]' : 'text-gray-500 group-hover:text-green-600'}`}>
                   PC {pcLabel.padStart(2, '0')}
-
-
-
                 </span>
 
-
-
-                <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-green-500' : isDisabled ? 'bg-red-400' : isMaintenance ? 'bg-purple-500 dark:bg-purple-400' : 'bg-green-400'}`} />
+                <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-green-500' : isDisabled ? 'bg-red-400' : isMaintenance ? 'bg-purple-500 dark:bg-purple-400' : isActiveSession ? 'bg-[#ff9100]' : hasReservations ? 'bg-[#3b82f6]' : 'bg-green-400'}`} />
 
 
 

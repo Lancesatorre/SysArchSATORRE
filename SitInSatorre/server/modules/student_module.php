@@ -1010,3 +1010,112 @@ function handle_student_top_labs(mysqli $db, array $input): void {
         json_response(500, ['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
     }
 }
+
+function handle_student_get_testimonial(mysqli $db, array $input): void {
+    $id_number = esc($db, trim($input['idNumber'] ?? ''));
+    if ($id_number === '') {
+        json_response(400, ['success' => false, 'message' => 'ID number is required']);
+    }
+
+    // 1. Get the latest active testimonial (prioritizing pending/declined)
+    $active = null;
+    $sql = "SELECT rating, feedback, status, created_at FROM testimonials 
+            WHERE student_id_number = ? 
+            ORDER BY CASE WHEN status IN ('pending', 'declined') THEN 0 ELSE 1 END, created_at DESC LIMIT 1";
+    $stmt = $db->prepare($sql);
+    if ($stmt) {
+        $stmt->bind_param('s', $id_number);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($row = $result->fetch_assoc()) {
+            $active = [
+                'rating' => intval($row['rating']),
+                'feedback' => $row['feedback'],
+                'status' => $row['status'],
+                'created_at' => $row['created_at']
+            ];
+        }
+    }
+
+    // 2. Get the history of ALL testimonials submitted by this student
+    $history = [];
+    $history_sql = "SELECT id, rating, feedback, status, created_at FROM testimonials 
+                    WHERE student_id_number = ? 
+                    ORDER BY created_at DESC";
+    $history_stmt = $db->prepare($history_sql);
+    if ($history_stmt) {
+        $history_stmt->bind_param('s', $id_number);
+        $history_stmt->execute();
+        $history_result = $history_stmt->get_result();
+        while ($row = $history_result->fetch_assoc()) {
+            $history[] = [
+                'id' => intval($row['id']),
+                'rating' => intval($row['rating']),
+                'feedback' => $row['feedback'],
+                'status' => $row['status'],
+                'created_at' => $row['created_at']
+            ];
+        }
+    }
+
+    json_response(200, [
+        'success' => true,
+        'data' => [
+            'active' => $active,
+            'history' => $history
+        ]
+    ]);
+}
+
+function handle_student_submit_testimonial(mysqli $db, array $input): void {
+    $id_number = esc($db, trim($input['idNumber'] ?? ''));
+    $rating = intval($input['rating'] ?? 0);
+    $feedback = esc($db, trim($input['feedback'] ?? ''));
+
+    if ($id_number === '') {
+        json_response(400, ['success' => false, 'message' => 'ID number is required']);
+    }
+    if ($rating < 1 || $rating > 5) {
+        json_response(400, ['success' => false, 'message' => 'Rating must be between 1 and 5']);
+    }
+    if ($feedback === '') {
+        json_response(400, ['success' => false, 'message' => 'Feedback is required']);
+    }
+
+    // Check if a PENDING or DECLINED testimonial exists that can be updated
+    $check_sql = "SELECT id FROM testimonials WHERE student_id_number = ? AND status IN ('pending', 'declined') LIMIT 1";
+    $check_stmt = $db->prepare($check_sql);
+    $check_stmt->bind_param('s', $id_number);
+    $check_stmt->execute();
+    $check_res = $check_stmt->get_result();
+
+    if ($check_res->num_rows > 0) {
+        // Update the existing pending/declined testimonial and reset status to pending
+        $row = $check_res->fetch_assoc();
+        $id = intval($row['id']);
+        $update_sql = "UPDATE testimonials SET rating = ?, feedback = ?, status = 'pending', created_at = CURRENT_TIMESTAMP WHERE id = ?";
+        $update_stmt = $db->prepare($update_sql);
+        $update_stmt->bind_param('isi', $rating, $feedback, $id);
+        if ($update_stmt->execute()) {
+            json_response(200, [
+                'success' => true,
+                'message' => 'Testimonial updated successfully. Awaiting admin approval!'
+            ]);
+        } else {
+            json_response(500, ['success' => false, 'message' => 'Failed to update testimonial']);
+        }
+    } else {
+        // Insert a brand new testimonial
+        $insert_sql = "INSERT INTO testimonials (student_id_number, rating, feedback, status) VALUES (?, ?, ?, 'pending')";
+        $insert_stmt = $db->prepare($insert_sql);
+        $insert_stmt->bind_param('sis', $id_number, $rating, $feedback);
+        if ($insert_stmt->execute()) {
+            json_response(200, [
+                'success' => true,
+                'message' => 'Testimonial submitted successfully. Awaiting admin approval!'
+            ]);
+        } else {
+            json_response(500, ['success' => false, 'message' => 'Failed to submit testimonial']);
+        }
+    }
+}

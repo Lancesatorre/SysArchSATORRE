@@ -155,6 +155,12 @@ export default function CurrentSessions() {
       catch (err) { setError(err.message || 'Failed to load current sessions') }
       finally { setLoading(false) }
     })()
+
+    const intervalId = setInterval(() => {
+      load().catch(() => {})
+    }, 10000)
+
+    return () => clearInterval(intervalId)
   }, [navigate])
 
   useEffect(() => {

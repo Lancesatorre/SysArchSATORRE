@@ -20,7 +20,7 @@ const formatTime = (timeString) => {
     } else if (timeString.includes('T')) {
       timePortion = timeString.split('T')[1];
     }
-    
+
     const [hours, minutes] = timePortion.split(':');
     const h = parseInt(hours, 10);
     const ampm = h >= 12 ? 'PM' : 'AM';
@@ -35,10 +35,10 @@ const formatTime = (timeString) => {
 const formatDate = (dateString) => {
   if (!dateString) return '-';
   const date = new Date(dateString.replace(/-/g, '/'));
-  return date.toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'short', 
-    day: 'numeric' 
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
   });
 };
 
@@ -72,8 +72,6 @@ export default function SessionHistory() {
     longest_session: 0
   });
   const [feedbackModal, setFeedbackModal] = useState({ open: false, record: null });
-  const [reviewModal, setReviewModal] = useState({ open: false, record: null, rating: 5, feedback: '', isSubmitting: false });
-  const [hoveredStar, setHoveredStar] = useState(0);
 
   const openFeedbackModal = (row) => {
     setFeedbackModal({ open: true, record: row });
@@ -81,49 +79,6 @@ export default function SessionHistory() {
 
   const closeFeedbackModal = () => {
     setFeedbackModal({ open: false, record: null });
-  };
-
-  const openReviewModal = (row) => {
-    setReviewModal({
-      open: true,
-      record: row,
-      rating: row.student_rating ? parseInt(row.student_rating) : 5,
-      feedback: row.student_feedback || '',
-      isSubmitting: false
-    });
-  };
-
-  const closeReviewModal = () => {
-    setReviewModal({ open: false, record: null, rating: 5, feedback: '', isSubmitting: false });
-    setHoveredStar(0);
-  };
-
-  const submitReview = async () => {
-    try {
-      setReviewModal(prev => ({ ...prev, isSubmitting: true }));
-      const response = await fetch(authService.getActionUrl('submitFeedback.php'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          record_id: reviewModal.record.session_id,
-          feedback: reviewModal.feedback,
-          rating: reviewModal.rating
-        }),
-        credentials: 'include'
-      });
-      const result = await response.json();
-      if (result.success) {
-        closeReviewModal();
-        fetchSessions(); // Refresh list to show rating and feedback
-      } else {
-        alert(result.message || 'Failed to submit review');
-        setReviewModal(prev => ({ ...prev, isSubmitting: false }));
-      }
-    } catch (error) {
-      console.error('Error submitting review:', error);
-      alert('Failed to submit review. Please try again.');
-      setReviewModal(prev => ({ ...prev, isSubmitting: false }));
-    }
   };
 
   useEffect(() => {
@@ -206,7 +161,7 @@ export default function SessionHistory() {
     setFilters(prev => ({
       ...prev,
       [key]: value,
-      page: key === 'page' ? value : 1 
+      page: key === 'page' ? value : 1
     }));
   };
 
@@ -229,7 +184,7 @@ export default function SessionHistory() {
   return (
     <div className="pt-2 sm:pt-3 pb-4 sm:pb-6 px-1 sm:px-2 bg-transparent">
       <div className="max-w-380 mx-auto w-full flex flex-col gap-4">
-        
+
         {/* ─── Header ─── */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
@@ -258,7 +213,7 @@ export default function SessionHistory() {
               className="w-full pl-22 pr-4 py-2.5 bg-gray-50 border border-transparent rounded-xl text-[0.8rem] font-bold text-[#1a0030] focus:outline-none focus:ring-2 focus:ring-[#3c096c]/10 focus:bg-white transition-all"
             />
           </div>
-          
+
           <div className="relative flex-1 w-full">
             <Calendar size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
             <span className="absolute left-10 text-[0.65rem] font-black text-gray-400 uppercase tracking-widest top-1/2 -translate-y-1/2 pointer-events-none">To:</span>
@@ -327,8 +282,7 @@ export default function SessionHistory() {
                       <TableHeader label="Entry Type" sortKey="entry_type" currentSort={sortConfig} onSort={handleSort} />
                       <TableHeader label="Laboratory" sortKey="lab_name" currentSort={sortConfig} onSort={handleSort} />
                       <TableHeader label="Status" sortKey="status" currentSort={sortConfig} onSort={handleSort} />
-                      <th className="px-4 py-3 select-none">Admin Note</th>
-                      <th className="px-4 py-3 select-none text-right pr-6">My Review</th>
+                      <th className="px-4 py-3 select-none text-right pr-6">Admin Note</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -348,11 +302,10 @@ export default function SessionHistory() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border ${
-                            session.entry_type === 'Reservation'
-                              ? 'bg-blue-50 text-blue-700 border-blue-200'
-                              : 'bg-orange-50 text-orange-700 border-orange-200'
-                          }`}>
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border ${session.entry_type === 'Reservation'
+                            ? 'bg-blue-50 text-blue-700 border-blue-200'
+                            : 'bg-orange-50 text-orange-700 border-orange-200'
+                            }`}>
                             {session.entry_type || 'Walk-in'}
                           </span>
                         </td>
@@ -364,11 +317,10 @@ export default function SessionHistory() {
                         </td>
                         <td className="px-4 py-3 text-sm">
                           <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 border border-green-200 px-2.5 py-0.5 rounded-full text-xs font-bold">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
                             {session.status}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm">
+                        <td className="px-4 py-3 text-sm text-right pr-6">
                           {session.admin_feedback && session.admin_feedback.trim() !== '' ? (
                             <button
                               onClick={() => openFeedbackModal(session)}
@@ -380,24 +332,6 @@ export default function SessionHistory() {
                             <span className="text-gray-400 text-xs font-semibold">—</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-sm text-right pr-6">
-                          <div className="flex items-center justify-end gap-2.5">
-                            {session.student_feedback && session.student_feedback.trim() !== '' ? (
-                              <div className="flex items-center gap-0.5 text-amber-500">
-                                {Array.from({ length: parseInt(session.student_rating || 5) }).map((_, i) => (
-                                  <Star key={i} size={11} className="fill-amber-400 stroke-amber-500" />
-                                ))}
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => openReviewModal(session)}
-                                className="text-[0.62rem] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-[#ff9100]/30 text-[#3c096c] bg-[#ff9100]/10 hover:bg-[#ff9100]/20 transition-all cursor-pointer hover:scale-105 duration-200"
-                              >
-                                Rate Session
-                              </button>
-                            )}
-                          </div>
-                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -407,11 +341,10 @@ export default function SessionHistory() {
               {/* Mobile View */}
               <div className="md:hidden p-3 flex flex-col gap-2.5">
                 {sessions.map(session => (
-                  <MobileSessionCard 
-                    key={session.session_id} 
-                    session={session} 
-                    onFeedback={openFeedbackModal} 
-                    onReview={openReviewModal} 
+                  <MobileSessionCard
+                    key={session.session_id}
+                    session={session}
+                    onFeedback={openFeedbackModal}
                   />
                 ))}
               </div>
@@ -458,95 +391,17 @@ export default function SessionHistory() {
               <p className="text-[0.62rem] text-gray-400 font-bold uppercase tracking-wider mb-4">
                 Session #{feedbackModal.record?.session_id} · {feedbackModal.record?.lab_name}
               </p>
-              
+
               <div className="bg-gray-50 border-2 border-gray-100 rounded-2xl px-4 py-3.5 text-left text-xs font-semibold text-gray-700 min-h-24 whitespace-pre-wrap mb-5 leading-relaxed">
                 {String(feedbackModal.record?.admin_feedback || '').trim() || 'No feedback provided.'}
               </div>
-              
+
               <button
                 onClick={closeFeedbackModal}
                 className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[0.7rem] font-black rounded-xl transition-all uppercase tracking-widest"
               >
                 Close
               </button>
-            </div>
-          </div>
-        )}
-
-        {/* ─── Rate & Review Modal (Interactive 5-Star Rating Selector) ─── */}
-        {reviewModal.open && (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4" onClick={(e) => e.target === e.currentTarget && !reviewModal.isSubmitting && closeReviewModal()}>
-            <div className="absolute inset-0 bg-[#1a0030]/60 backdrop-blur-sm" />
-            <div className="relative bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col text-center" onClick={e => e.stopPropagation()}>
-              
-              <div className="w-12 h-12 bg-linear-to-br from-[#ff9100]/10 to-[#3c096c]/10 text-[#ff9100] rounded-full flex items-center justify-center mx-auto mb-4 shrink-0">
-                <Award size={24} className="stroke-[2.5]" />
-              </div>
-              
-              <h3 className="text-lg font-black text-[#1a0030] uppercase tracking-tight mb-1">Rate Your Session</h3>
-              <p className="text-[0.62rem] text-gray-400 font-bold uppercase tracking-wider mb-5">
-                Session #{reviewModal.record?.session_id} · {reviewModal.record?.lab_name}
-              </p>
-
-              {/* Star Rating Bar */}
-              <div className="flex justify-center gap-1.5 mb-5 mt-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    disabled={reviewModal.isSubmitting}
-                    className="focus:outline-none transition-transform hover:scale-125 active:scale-95 duration-150 cursor-pointer disabled:opacity-50"
-                    onClick={() => setReviewModal(p => ({ ...p, rating: star }))}
-                    onMouseEnter={() => setHoveredStar(star)}
-                    onMouseLeave={() => setHoveredStar(0)}
-                  >
-                    <Star
-                      size={36}
-                      className={`stroke-2 transition-all duration-150 ${
-                        star <= (hoveredStar || reviewModal.rating)
-                          ? 'fill-amber-400 stroke-amber-500 drop-shadow-sm'
-                          : 'stroke-gray-300 fill-transparent'
-                      }`}
-                    />
-                  </button>
-                ))}
-              </div>
-
-              {/* Feedback Textarea */}
-              <div className="text-left mb-6">
-                <label className="text-[0.65rem] font-black text-gray-400 uppercase tracking-widest block mb-2">Feedback</label>
-                <textarea
-                  value={reviewModal.feedback}
-                  disabled={reviewModal.isSubmitting}
-                  onChange={(e) => setReviewModal(p => ({ ...p, feedback: e.target.value }))}
-                  placeholder="Share your experience using this laboratory! How was the computer speed, cleanliness, or assistance..."
-                  className="w-full h-32 px-4 py-3 bg-gray-50 hover:bg-gray-100/50 focus:bg-white border-2 border-gray-100 focus:border-[#3c096c]/20 rounded-2xl text-[0.8rem] font-semibold text-[#1a0030] focus:outline-none transition-all resize-none leading-relaxed"
-                />
-              </div>
-
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  disabled={reviewModal.isSubmitting}
-                  onClick={closeReviewModal}
-                  className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[0.7rem] font-black rounded-xl transition-all uppercase tracking-widest disabled:opacity-50 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={reviewModal.isSubmitting || !reviewModal.feedback.trim()}
-                  onClick={submitReview}
-                  className="flex-1 py-3 bg-[#3c096c] hover:bg-[#240046] text-white text-[0.7rem] font-black rounded-xl transition-all uppercase tracking-widest disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-[#3c096c]/25"
-                >
-                  {reviewModal.isSubmitting ? (
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    'Submit Review'
-                  )}
-                </button>
-              </div>
-
             </div>
           </div>
         )}
@@ -586,7 +441,7 @@ function TableHeader({ label, sortKey, currentSort, onSort }) {
   );
 }
 
-function MobileSessionCard({ session, onFeedback, onReview }) {
+function MobileSessionCard({ session, onFeedback }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -595,11 +450,6 @@ function MobileSessionCard({ session, onFeedback, onReview }) {
         <div>
           <div className="flex items-center gap-1.5">
             <p className="text-sm font-bold text-[#1a0030]">{session.lab_name || 'Unspecified Lab'}</p>
-            {session.student_feedback && session.student_feedback.trim() !== '' && (
-              <span className="flex items-center gap-0.5 text-amber-500 text-[0.65rem] font-bold bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-md">
-                ★ {session.student_rating}
-              </span>
-            )}
           </div>
           <p className="text-xs text-gray-500 mt-0.5">PC No: {session.pc_number ? session.pc_number.replace('PC-', '') : '—'}</p>
         </div>
@@ -610,15 +460,13 @@ function MobileSessionCard({ session, onFeedback, onReview }) {
 
       <div className="mt-2 flex items-center justify-between gap-2 flex-wrap">
         <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 border border-green-200 px-2.5 py-0.5 rounded-full text-[0.68rem] font-bold">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
           {session.status}
         </span>
         <div className="flex items-center gap-2">
-          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[0.65rem] font-bold border ${
-            session.entry_type === 'Reservation'
-              ? 'bg-blue-50 text-blue-700 border-blue-200'
-              : 'bg-orange-50 text-orange-700 border-orange-200'
-          }`}>
+          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[0.65rem] font-bold border ${session.entry_type === 'Reservation'
+            ? 'bg-blue-50 text-blue-700 border-blue-200'
+            : 'bg-orange-50 text-orange-700 border-orange-200'
+            }`}>
             {session.entry_type || 'Walk-in'}
           </span>
           <p className="text-xs font-semibold text-gray-500">{formatDate(session.session_date)}</p>
@@ -637,24 +485,6 @@ function MobileSessionCard({ session, onFeedback, onReview }) {
               className="mt-2 w-full py-2 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 text-[0.65rem] font-black rounded-lg transition-all uppercase tracking-widest cursor-pointer"
             >
               View Admin Note
-            </button>
-          )}
-
-          {session.student_feedback && session.student_feedback.trim() !== '' ? (
-            <div className="mt-1.5 flex items-center justify-between border border-amber-100 bg-amber-50/50 p-2.5 rounded-xl">
-              <span className="text-[0.65rem] font-black uppercase text-amber-700 tracking-wider">My Rating:</span>
-              <div className="flex items-center gap-0.5 text-amber-500">
-                {Array.from({ length: parseInt(session.student_rating || 5) }).map((_, i) => (
-                  <Star key={i} size={11} className="fill-amber-400 stroke-amber-500" />
-                ))}
-              </div>
-            </div>
-          ) : (
-            <button
-              onClick={() => onReview(session)}
-              className="mt-1.5 w-full py-2 bg-[#ff9100]/10 hover:bg-[#ff9100]/20 border border-[#ff9100]/20 text-[#3c096c] text-[0.65rem] font-black rounded-lg transition-all uppercase tracking-widest cursor-pointer"
-            >
-              Rate & Review Session
             </button>
           )}
         </div>

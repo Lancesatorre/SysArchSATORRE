@@ -91,7 +91,7 @@ export default function Reservations() {
 
   // Auto-refresh hook
   useEffect(() => {
-    const intervalId = setInterval(() => fetchReservations(false), 15000); // Refresh every 15s
+    const intervalId = setInterval(() => fetchReservations(false), 10000); // Refresh every 10s
     window.addEventListener('focus', fetchReservations);
     return () => {
       clearInterval(intervalId);
@@ -385,7 +385,7 @@ function StatCard({ label, value, color = '#3c096c' }) {
 
 function ReservationRow({ reservation, onDelete }) {
   const { bg, text, border, icon } = getStatusStyle(reservation.status);
-  const canCancel = reservation.status === 'pending' || reservation.status === 'approved';
+  const canCancel = reservation.status === 'pending';
 
   return (
     <tr className="border-t border-gray-100 hover:bg-gray-50/50">
@@ -419,7 +419,7 @@ function ReservationRow({ reservation, onDelete }) {
 
 function ReservationCard({ reservation, onDelete, isExpanded, onToggleExpand }) {
   const { bg, text, border, icon } = getStatusStyle(reservation.status);
-  const canCancel = reservation.status === 'pending' || reservation.status === 'approved';
+  const canCancel = reservation.status === 'pending';
 
   return (
     <div className="border border-gray-100 rounded-xl p-3">

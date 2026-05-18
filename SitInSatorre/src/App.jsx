@@ -21,6 +21,8 @@ import GenerateReports from "./Admin/GenerateReports";
 import { authService } from "./services/authService";
 import { ThemeProvider } from "./services/ThemeContext";
 import FloatingThemeToggle from "./Components/FloatingThemeToggle";
+import StudentTestimonials from "./Student/Testimonials";
+import AdminTestimonials from "./Admin/Testimonials";
 
 
 function RequireAuth({ children, role }) {
@@ -75,7 +77,7 @@ function App() {
             }
           />
           <Route element={<LayoutNav />}>
-             <Route path="/" element={<Landing />} /> 
+             <Route path="/" element={<RedirectIfAuthenticated><Landing /></RedirectIfAuthenticated>} />
               <Route
                 path="/admin/dashboard"
                 element={
@@ -196,6 +198,23 @@ function App() {
                   </RequireAuth>
                 }
               />
+              <Route
+                path="/student/testimonials"
+                element={
+                  <RequireAuth role="student">
+                    <StudentTestimonials />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/admin/testimonials"
+                element={
+                  <RequireAuth role="admin">
+                    <AdminTestimonials />
+                  </RequireAuth>
+                }
+              />
+
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

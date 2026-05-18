@@ -67,17 +67,33 @@ const NavIcon = ({ d, cls = 'w-4 h-4' }) => (
 function NavLink({ to, children, onClick }) {
   const { pathname } = useLocation();
   const isActive = pathname === to || pathname.startsWith(to + '/');
+  
+  const getLinkIcon = (path) => {
+    const p = path.toLowerCase();
+    if (p.includes('dashboard')) return 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6';
+    if (p.includes('history')) return 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z';
+    if (p.includes('reservation')) return 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z';
+    if (p.includes('software')) return 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z';
+    if (p.includes('report')) return 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z';
+    if (p.includes('testimonial')) return 'M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z';
+    return null;
+  };
+
+  const iconD = getLinkIcon(to);
+
   return (
     <Link
       to={to}
       onClick={onClick}
       style={{
-        color: isActive ? '#ff9100' : '#ffffff',
         borderBottom: isActive ? '2.5px solid #ff9100 ' : '',
         fontWeight: isActive ? 600 : 500,
       }}
-      className='hover:text-[#ff9100] transition duration-300 px-3 rounded-2xl'
+      className={`transition duration-300 px-2 xl:px-3 rounded-2xl flex items-center gap-1 xl:gap-1.5 pb-0.5 text-xs xl:text-sm font-semibold shrink-0 ${
+        isActive ? 'text-[#ff9100]' : 'text-white hover:text-[#ff9100]'
+      }`}
     >
+      {iconD && <NavIcon d={iconD} cls='w-4 h-4 shrink-0' />}
       {children}
     </Link>
   );
@@ -171,15 +187,26 @@ export default function Navbar() {
   const [hasActiveSession, setHasActiveSession] = useState(false);
 
   useEffect(() => {
-    setIsLoggedIn(authService.isLoggedIn());
-    if (authService.isLoggedIn()) {
-      const sessionUser = authService.getUser();
-      setUser(sessionUser);
-      if (sessionUser?.id_number && sessionUser?.role !== 'admin') {
-        loadNotifications(sessionUser);
-        checkActiveSessionStatus(sessionUser);
+    const syncUser = () => {
+      setIsLoggedIn(authService.isLoggedIn());
+      if (authService.isLoggedIn()) {
+        const sessionUser = authService.getUser();
+        setUser(sessionUser);
+        if (sessionUser?.id_number && sessionUser?.role !== 'admin') {
+          loadNotifications(sessionUser, false);
+          checkActiveSessionStatus(sessionUser);
+        }
+      } else {
+        setUser(null);
       }
-    }
+    };
+
+    syncUser();
+
+    window.addEventListener('storage', syncUser);
+    return () => {
+      window.removeEventListener('storage', syncUser);
+    };
   }, []);
 
   const checkActiveSessionStatus = async (activeUser = user) => {
@@ -406,15 +433,23 @@ export default function Navbar() {
           <LoadingScreen message="Logging out..." />
         </div>
       )}
-      <nav ref={navRef} className='sticky top-4 sm:top-5 z-40 min-h-[5vh] mx-3 sm:mx-6 lg:mx-16 xl:mx-40 bg-[#3c096c]/90 backdrop-blur-md flex justify-between shadow-md shadow-[#ff9100]/20 items-center rounded-3xl px-4 sm:px-8 lg:px-12 mb-5 transition-all duration-300'>
-        <div className='flex items-center justify-center flex-row gap-3'>
-          <img src={ccsLogo} alt="CCS Logo" className='rounded-md h-8 w-8 border border-[#240046]' />
-          <h1 className='font-bold text-lg text-white tracking-wider'>
-            <Link to="/" className='text-white hover:text-[#ff9100] transition duration-300'>Sit-inIT</Link>
+      <nav ref={navRef} className='sticky top-4 sm:top-5 z-40 min-h-[5vh] mx-3 sm:mx-4 md:mx-6 lg:mx-8 xl:mx-16 bg-[#3c096c]/90 backdrop-blur-md flex justify-between shadow-md shadow-[#ff9100]/20 items-center rounded-3xl px-3 sm:px-6 lg:px-8 mb-5 transition-all duration-300'>
+        <Link 
+          to={isLoggedIn ? dashboardPath : "/"} 
+          className='flex items-center justify-start flex-row gap-2 sm:gap-3 shrink-0 group cursor-pointer'
+          onClick={() => {
+            if (!isLoggedIn && pathname === '/') {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+          }}
+        >
+          <img src={ccsLogo} alt="CCS Logo" className='rounded-md h-8 w-8 border border-[#240046] shrink-0 group-hover:scale-105 transition-transform duration-300' />
+          <h1 className='font-bold text-base sm:text-lg text-white tracking-wider whitespace-nowrap shrink-0 group-hover:text-[#ff9100] transition duration-300'>
+            Sit-inIT
           </h1>
-        </div>
+        </Link>
 
-        <div className='hidden md:flex gap-4 justify-center items-center'>
+        <div className='hidden xl:flex gap-2 xl:gap-3 justify-center items-center'>
           {!isLoggedIn ? (
             <>
               <div className='text-white flex justify-center items-center gap-10'>
@@ -424,59 +459,63 @@ export default function Navbar() {
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
                   style={{
-                    color: activeSection === 'home' ? '#ff9100' : '#ffffff',
                     borderBottom: activeSection === 'home' ? '2.5px solid #ff9100' : '',
                     fontWeight: activeSection === 'home' ? 600 : 500,
                   }}
-                  className={`hover:text-[#ff9100] transition duration-300 px-3 pb-0.5 ${activeSection === 'home' ? 'rounded-2xl' : 'rounded-t-2xl rounded-b-none'
-                    }`}
+                  className={`transition duration-300 px-3 pb-0.5 flex items-center gap-1.5 ${
+                    activeSection === 'home' ? 'text-[#ff9100] rounded-2xl' : 'text-white hover:text-[#ff9100] rounded-t-2xl rounded-b-none'
+                  }`}
                 >
+                  <NavIcon d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" cls="w-4 h-4 shrink-0" />
                   Home
                 </Link>
                 <a
                   href="/#about"
                   onClick={(e) => handleSectionClick(e, 'about')}
                   style={{
-                    color: activeSection === 'about' ? '#ff9100' : '#ffffff',
                     borderBottom: activeSection === 'about' ? '2.5px solid #ff9100' : '',
                     fontWeight: activeSection === 'about' ? 600 : 500,
                   }}
-                  className={`hover:text-[#ff9100] transition duration-300 px-3 pb-0.5 ${activeSection === 'about' ? 'rounded-2xl' : 'rounded-t-2xl rounded-b-none'
-                    }`}
+                  className={`transition duration-300 px-3 pb-0.5 flex items-center gap-1.5 ${
+                    activeSection === 'about' ? 'text-[#ff9100] rounded-2xl' : 'text-white hover:text-[#ff9100] rounded-t-2xl rounded-b-none'
+                  }`}
                 >
+                  <NavIcon d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" cls="w-4 h-4 shrink-0" />
                   About
                 </a>
                 <a
                   href="/#faqs"
                   onClick={(e) => handleSectionClick(e, 'faqs')}
                   style={{
-                    color: activeSection === 'faqs' ? '#ff9100' : '#ffffff',
                     borderBottom: activeSection === 'faqs' ? '2.5px solid #ff9100' : '',
                     fontWeight: activeSection === 'faqs' ? 600 : 500,
                   }}
-                  className={`hover:text-[#ff9100] transition duration-300 px-3 pb-0.5 ${activeSection === 'faqs' ? 'rounded-2xl' : 'rounded-t-2xl rounded-b-none'
-                    }`}
+                  className={`transition duration-300 px-3 pb-0.5 flex items-center gap-1.5 ${
+                    activeSection === 'faqs' ? 'text-[#ff9100] rounded-2xl' : 'text-white hover:text-[#ff9100] rounded-t-2xl rounded-b-none'
+                  }`}
                 >
+                  <NavIcon d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" cls="w-4 h-4 shrink-0" />
                   FAQs
                 </a>
                 <a
                   href="/#testimonials"
                   onClick={(e) => handleSectionClick(e, 'testimonials')}
                   style={{
-                    color: activeSection === 'testimonials' ? '#ff9100' : '#ffffff',
                     borderBottom: activeSection === 'testimonials' ? '2.5px solid #ff9100' : '',
                     fontWeight: activeSection === 'testimonials' ? 600 : 500,
                   }}
-                  className={`hover:text-[#ff9100] transition duration-300 px-3 pb-0.5 ${activeSection === 'testimonials' ? 'rounded-2xl' : 'rounded-t-2xl rounded-b-none'
-                    }`}
+                  className={`transition duration-300 px-3 pb-0.5 flex items-center gap-1.5 ${
+                    activeSection === 'testimonials' ? 'text-[#ff9100] rounded-2xl' : 'text-white hover:text-[#ff9100] rounded-t-2xl rounded-b-none'
+                  }`}
                 >
+                  <NavIcon d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" cls="w-4 h-4 shrink-0" />
                   Testimonials
                 </a>
               </div>
             </>
           ) : (
             <>
-              <div className='text-white flex justify-center items-center gap-5 py-4'>
+              <div className='text-white flex justify-center items-center gap-1.5 xl:gap-3 py-4'>
                 <NavLink to={dashboardPath}>Home</NavLink>
 
                 {user?.role === 'admin' ? (
@@ -484,8 +523,9 @@ export default function Navbar() {
                     <button
                       onClick={() => setSitInOpen(!sitInOpen)}
                       style={dropdownActiveStyle(['/admin/search-student', '/admin/current-sessions', '/admin/sit-in-records'])}
-                      className='hover:text-[#ff9100] transition duration-300 flex items-center gap-1 px-3 rounded-2xl'
+                      className='hover:text-[#ff9100] transition duration-300 flex items-center gap-1 xl:gap-1.5 px-2 xl:px-3 rounded-2xl pb-0.5 text-xs xl:text-sm font-semibold shrink-0'
                     >
+                      <NavIcon d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" cls="w-4 h-4 shrink-0" />
                       Sit In
                       <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform ${sitInOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -523,20 +563,23 @@ export default function Navbar() {
                     <NavLink to="/student/history">History</NavLink>
                     <NavLink to="/student/reservation">Reservation</NavLink>
                     <NavLink to="/student/software-availability">Software</NavLink>
+                    <NavLink to="/student/testimonials">Testimonials</NavLink>
                   </>
                 )}
 
                 {isAdmin && <NavLink to="/admin/reservations">Reservation</NavLink>}
                 {isAdmin && <NavLink to="/admin/software-management">Software</NavLink>}
                 {isAdmin && <NavLink to="/admin/generate-reports">Reports</NavLink>}
+                {isAdmin && <NavLink to="/admin/testimonials">Testimonials</NavLink>}
 
                 {isAdmin ? (
                   <div ref={announcementRef} className='relative'>
                     <button
                       onClick={() => setAnnouncementOpen(!announcementOpen)}
                       style={dropdownActiveStyle(['/admin/create-announcement', '/admin/announcement-records'])}
-                      className='hover:text-[#ff9100] transition duration-300 flex items-center gap-1 px-3 rounded-2xl'
+                      className='hover:text-[#ff9100] transition duration-300 flex items-center gap-1 xl:gap-1.5 px-2 xl:px-3 rounded-2xl pb-0.5 text-xs xl:text-sm font-semibold shrink-0'
                     >
+                      <NavIcon d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" cls="w-4 h-4 shrink-0" />
                       Announcement
                       <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform ${announcementOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -577,8 +620,9 @@ export default function Navbar() {
                         setNotificationOpen(next);
                         if (next) loadNotifications();
                       }}
-                      className='hover:text-[#ff9100] transition duration-300 flex items-center gap-2 relative'
+                      className='hover:text-[#ff9100] transition duration-300 flex items-center gap-1 xl:gap-1.5 relative pb-0.5 text-xs xl:text-sm font-semibold shrink-0'
                     >
+                      <NavIcon d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" cls="w-4 h-4 shrink-0" />
                       Notifications
                       <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform ${notificationOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -715,9 +759,13 @@ export default function Navbar() {
                     cursor: 'pointer', transition: 'border-color 0.15s', flexShrink: 0,
                   }}
                 >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#e9d5ff">
-                    <path fillRule="evenodd" d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" clipRule="evenodd" />
-                  </svg>
+                  {user?.profile_picture ? (
+                    <img src={user.profile_picture} alt="Avatar" className="w-full h-full object-cover rounded-[10px]" />
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#e9d5ff">
+                      <path fillRule="evenodd" d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" clipRule="evenodd" />
+                    </svg>
+                  )}
                 </button>
 
                 {profileOpen && (
@@ -738,9 +786,13 @@ export default function Navbar() {
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           border: '1.5px solid rgba(199,125,255,0.35)',
                         }}>
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="#e9d5ff">
-                            <path fillRule="evenodd" d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" clipRule="evenodd" />
-                          </svg>
+                          {user?.profile_picture ? (
+                            <img src={user.profile_picture} alt="Avatar" className="w-full h-full object-cover rounded-[10px]" />
+                          ) : (
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="#e9d5ff">
+                              <path fillRule="evenodd" d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" clipRule="evenodd" />
+                            </svg>
+                          )}
                         </div>
                         <span style={{
                           position: 'absolute', bottom: '-2px', right: '-2px',
@@ -764,13 +816,12 @@ export default function Navbar() {
                     </div>
 
                     <div style={{ padding: '6px' }}>
-                      <ProfileMenuItem to={profilePath} icon={
-                        <svg viewBox="0 0 24 24" fill="currentColor"><path fillRule="evenodd" d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" clipRule="evenodd" /></svg>
-                      } onClick={() => setProfileOpen(false)}>{user?.role === 'admin' ? 'Dashboard' : 'Profile'}</ProfileMenuItem>
+                      {user?.role !== 'admin' && (
+                        <ProfileMenuItem to={profilePath} icon={
+                          <svg viewBox="0 0 24 24" fill="currentColor"><path fillRule="evenodd" d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" clipRule="evenodd" /></svg>
+                        } onClick={() => setProfileOpen(false)}>Profile</ProfileMenuItem>
+                      )}
 
-                      <ProfileMenuItem to="/settings" icon={
-                        <svg viewBox="0 0 24 24" fill="currentColor"><path fillRule="evenodd" d="M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 4.889c-.02.12-.115.26-.297.348a7.493 7.493 0 0 0-.986.57c-.166.115-.334.126-.45.083L6.3 5.508a1.875 1.875 0 0 0-2.282.819l-.922 1.597a1.875 1.875 0 0 0 .432 2.385l.84.692c.095.078.17.229.154.43a7.598 7.598 0 0 0 0 1.139c.015.2-.059.352-.153.43l-.841.692a1.875 1.875 0 0 0-.432 2.385l.922 1.597a1.875 1.875 0 0 0 2.282.818l1.019-.382c.115-.043.283-.031.45.082.312.214.641.405.985.57.182.088.277.228.297.35l.178 1.071c.151.904.933 1.567 1.85 1.567h1.844c.916 0 1.699-.663 1.85-1.567l.178-1.072c.02-.12.114-.26.297-.349.344-.165.673-.356.985-.57.167-.114.335-.125.45-.082l1.02.382a1.875 1.875 0 0 0 2.28-.819l.923-1.597a1.875 1.875 0 0 0-.432-2.385l-.84-.692c-.095-.078-.17-.229-.154-.43a7.614 7.614 0 0 0 0-1.139c-.016-.2.059-.352.153-.43l.84-.692c.708-.582.891-1.59.433-2.385l-.922-1.597a1.875 1.875 0 0 0-2.282-.818l-1.02.382c-.114.043-.282.031-.449-.083a7.49 7.49 0 0 0-.985-.57c-.183-.087-.277-.227-.297-.348l-.179-1.072a1.875 1.875 0 0 0-1.85-1.567h-1.843ZM12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z" clipRule="evenodd" /></svg>
-                      } onClick={() => setProfileOpen(false)}>Settings</ProfileMenuItem>
 
                       <div style={{ height: '1px', background: 'rgba(157,78,221,0.12)', margin: '4px 0' }} />
 
@@ -812,23 +863,23 @@ export default function Navbar() {
         {/* Mobile toggle */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className='md:hidden inline-flex items-center justify-center p-2 rounded-lg text-white hover:bg-[#5a189a] transition'
+          className='xl:hidden inline-flex items-center justify-center p-2 rounded-lg text-white hover:bg-[#5a189a] transition'
           aria-label='Toggle navigation menu'
         >
           {mobileMenuOpen ? (
             <svg xmlns="http://www.w3.org/2000/svg" className='w-6 h-6' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-              <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M6 18L18 6M6 6l12 12' />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d='M6 18L18 6M6 6l12 12' />
             </svg>
           ) : (
             <svg xmlns="http://www.w3.org/2000/svg" className='w-6 h-6' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-              <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M4 6h16M4 12h16M4 18h16' />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d='M4 6h16M4 12h16M4 18h16' />
             </svg>
           )}
         </button>
-
+ 
         {/* Mobile menu */}
         {mobileMenuOpen && (
-          <div className='md:hidden absolute top-[calc(100%+8px)] left-0 right-0 bg-[#140828] text-white rounded-2xl border border-[#7b2cbf]/45 shadow-xl p-3 z-50'>
+          <div className='xl:hidden absolute top-[calc(100%+8px)] left-0 right-0 bg-[#140828] text-white rounded-2xl border border-[#7b2cbf]/45 shadow-xl p-3 z-50'>
             {!isLoggedIn ? (
               <div className='flex flex-col gap-2 text-left'>
                 <div className='px-2 py-1 text-[0.62rem] font-black uppercase tracking-wider text-[#c77dff]'>Main</div>
@@ -913,6 +964,13 @@ export default function Navbar() {
                       className='px-3 py-2.5 rounded-xl border border-transparent hover:text-[#ff9100] hover:bg-[#3c096c]/35 transition duration-300'
                     >Software</Link>
 
+                    <div className='px-2 pt-2 pb-1 text-[0.62rem] font-black uppercase tracking-wider text-[#c77dff]'>Testimonials</div>
+                    <Link
+                      to="/admin/testimonials" onClick={closeMobileMenu}
+                      style={isPathActive("/admin/testimonials") ? { color: '#ff9100', fontWeight: 600, background: 'rgba(255,145,0,0.1)', borderColor: 'rgba(255,145,0,0.35)' } : {}}
+                      className='px-3 py-2.5 rounded-xl border border-transparent hover:text-[#ff9100] hover:bg-[#3c096c]/35 transition duration-300'
+                    >Testimonials</Link>
+
                     <div className='px-2 pt-2 pb-1 text-[0.62rem] font-black uppercase tracking-wider text-[#c77dff]'>Announcement</div>
                     {[
                       { to: '/admin/create-announcement', label: 'Create Announcement' },
@@ -931,6 +989,7 @@ export default function Navbar() {
                       { to: '/student/history', label: 'History' },
                       { to: '/student/reservation', label: 'Reservation' },
                       { to: '/student/software-availability', label: 'Software' },
+                      { to: '/student/testimonials', label: 'Testimonials' },
                     ].map(({ to, label }) => (
                       <Link
                         key={to} to={to} onClick={closeMobileMenu}

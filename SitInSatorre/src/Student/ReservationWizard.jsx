@@ -151,6 +151,13 @@ export default function ReservationWizard({ onClose, onSuccess }) {
 
   const handleNextStep = () => {
     if (step === 3) {
+      const [hours, minutes] = formData.startTime.split(':').map(Number);
+      const totalMinutes = hours * 60 + minutes;
+      if (totalMinutes < 450 || totalMinutes > 1230) {
+        setError("Workstation reservations are strictly permitted only between 7:30 AM and 8:30 PM.");
+        return;
+      }
+
       if (selectedPCReservation) {
         const reservationsToCheck = (selectedPCReservation.all_reservations && selectedPCReservation.all_reservations.length > 0)
           ? selectedPCReservation.all_reservations
@@ -272,6 +279,10 @@ export default function ReservationWizard({ onClose, onSuccess }) {
       component: <Step3TimeSelection formData={formData} setFormData={setFormData} selectedPCReservation={selectedPCReservation} studentReservations={studentReservations} />,
       isValid: (() => {
         if (!formData.date || !formData.startTime) return false;
+        
+        const [hours, minutes] = formData.startTime.split(':').map(Number);
+        const totalMinutes = hours * 60 + minutes;
+        if (totalMinutes < 450 || totalMinutes > 1230) return false;
         
         const now = new Date();
         const [sYear, sMonth, sDay] = formData.date.split('-').map(Number);
@@ -754,21 +765,40 @@ const Step3TimeSelection = ({ formData, setFormData, selectedPCReservation, stud
     return selectedTime < new Date(now.getTime() - 5 * 60 * 1000);
   };
 
+  const isTimeOutsideBounds = () => {
+    if (!formData.startTime) return false;
+    const [hours, minutes] = formData.startTime.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes;
+    return totalMinutes < 450 || totalMinutes > 1230;
+  };
+
   const hasMultiple = selectedPCReservation && selectedPCReservation.all_reservations && selectedPCReservation.all_reservations.length >= 2;
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {isTimeOutsideBounds() && (
+        <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-400 px-5 py-4 rounded-2xl text-xs font-bold flex items-start gap-3 shadow-sm shadow-red-50/50 dark:shadow-none">
+          <Clock size={16} className="shrink-0 text-red-500 dark:text-red-400 mt-0.5" />
+          <div>
+            <h5 className="uppercase tracking-wider font-black text-red-950 dark:text-red-300 mb-0.5">Outside Operational Hours</h5>
+            <p className="text-[0.7rem] text-red-800 dark:text-red-400/80 leading-relaxed font-semibold">
+              Workstation reservations are strictly permitted only between <span className="font-black text-red-950 dark:text-red-300 underline">7:30 AM</span> and <span className="font-black text-red-950 dark:text-red-300 underline">8:30 PM</span>.
+            </p>
+          </div>
+        </div>
+      )}
+
       {selectedPCReservation && (
         hasMultiple ? (
-          <div className="bg-[#5a189a]/5 border border-[#5a189a]/20 rounded-2xl p-5 flex items-start gap-4 shadow-sm shadow-[#5a189a]/5">
-            <div className="w-10 h-10 bg-[#5a189a]/10 rounded-xl flex items-center justify-center text-[#5a189a] shrink-0">
+          <div className="bg-[#5a189a]/5 dark:bg-[#5a189a]/10 border border-[#5a189a]/20 dark:border-[#5a189a]/30 rounded-2xl p-5 flex items-start gap-4 shadow-sm shadow-[#5a189a]/5 dark:shadow-none">
+            <div className="w-10 h-10 bg-[#5a189a]/10 dark:bg-[#5a189a]/20 rounded-xl flex items-center justify-center text-[#5a189a] dark:text-[#c77dff] shrink-0">
               <Server size={20} className="stroke-[2.5]" />
             </div>
             <div className="flex-1">
-              <h4 className="font-black text-[#1a0030] text-sm mb-1 uppercase tracking-wider">Multiple Existing Bookings</h4>
-              <p className="text-xs text-gray-500 leading-relaxed font-bold">
-                PC {formData.pcNumber.replace('PC-', '')} has <span className="text-[#3c096c] font-black">{selectedPCReservation.all_reservations.length} scheduled reservations</span>.
-                <span className="text-[0.65rem] text-[#3c096c] uppercase font-black tracking-wide block mt-1.5 flex items-center gap-1">
+              <h4 className="font-black text-[#1a0030] dark:text-[#c77dff] text-sm mb-1 uppercase tracking-wider">Multiple Existing Bookings</h4>
+              <p className="text-xs text-gray-500 dark:text-[#e0aaff]/80 leading-relaxed font-bold">
+                PC {formData.pcNumber.replace('PC-', '')} has <span className="text-[#3c096c] dark:text-[#e0aaff] font-black">{selectedPCReservation.all_reservations.length} scheduled reservations</span>.
+                <span className="text-[0.65rem] text-[#3c096c] dark:text-[#e0aaff]/70 uppercase font-black tracking-wide block mt-1.5 flex items-center gap-1">
                   ⚠️ Note: Your new reservation must be at least 3 hours before or after ALL booked slots.
                 </span>
               </p>
@@ -782,15 +812,15 @@ const Step3TimeSelection = ({ formData, setFormData, selectedPCReservation, stud
             </div>
           </div>
         ) : selectedPCReservation.is_session_active ? (
-          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-5 flex items-start gap-4 shadow-sm shadow-orange-50/50">
-            <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center text-orange-600 shrink-0">
+          <div className="bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 rounded-2xl p-5 flex items-start gap-4 shadow-sm shadow-orange-50/50 dark:shadow-none">
+            <div className="w-10 h-10 bg-orange-100 dark:bg-orange-500/20 rounded-xl flex items-center justify-center text-orange-600 dark:text-orange-400 shrink-0">
               <Monitor size={20} className="stroke-[2.5]" />
             </div>
             <div>
-              <h4 className="font-black text-orange-950 text-sm mb-1 uppercase tracking-wider">PC Active Sitting Session</h4>
-              <p className="text-xs text-orange-850 leading-relaxed font-bold">
-                This PC currently has an active sitting session by ID No. <span className="text-orange-950 underline">{selectedPCReservation.session_student_id_number || selectedPCReservation.student_id_number}</span>, started on <span className="text-orange-950 underline">{selectedPCReservation.session_started_date}</span> at <span className="text-orange-950 underline">{selectedPCReservation.session_started_time}</span>.
-                <span className="text-[0.65rem] text-orange-700 uppercase font-black tracking-wide block mt-1.5 flex items-center gap-1">
+              <h4 className="font-black text-orange-950 dark:text-orange-300 text-sm mb-1 uppercase tracking-wider">PC Active Sitting Session</h4>
+              <p className="text-xs text-orange-850 dark:text-orange-400/80 leading-relaxed font-bold">
+                This PC currently has an active sitting session by ID No. <span className="text-orange-950 dark:text-orange-300 underline">{selectedPCReservation.session_student_id_number || selectedPCReservation.student_id_number}</span>, started on <span className="text-orange-950 dark:text-orange-300 underline">{selectedPCReservation.session_started_date}</span> at <span className="text-orange-950 dark:text-orange-300 underline">{selectedPCReservation.session_started_time}</span>.
+                <span className="text-[0.65rem] text-orange-700 dark:text-orange-400/70 uppercase font-black tracking-wide block mt-1.5 flex items-center gap-1">
                   ⚠️ Note: Your new reservation must be at least 3 hours before or after the session started time.
                 </span>
               </p>
@@ -798,30 +828,30 @@ const Step3TimeSelection = ({ formData, setFormData, selectedPCReservation, stud
           </div>
         ) : selectedPCReservation.reserved_date ? (
           selectedPCReservation.reserved_by_me ? (
-            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 flex items-start gap-4 shadow-sm shadow-blue-50/50">
-              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 shrink-0">
+            <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 rounded-2xl p-5 flex items-start gap-4 shadow-sm shadow-blue-50/50 dark:shadow-none">
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-500/20 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                 <Monitor size={20} className="stroke-[2.5]" />
               </div>
               <div>
-                <h4 className="font-black text-blue-900 text-sm mb-1 uppercase tracking-wider">Your Existing Reservation Details</h4>
-                <p className="text-xs text-blue-700 leading-relaxed font-bold">
-                  You already have a reservation on PC {formData.pcNumber.replace('PC-', '')} for <span className="text-blue-900 underline">{selectedPCReservation.reserved_date}</span> at <span className="text-blue-900 underline">{selectedPCReservation.reserved_time}</span>.
-                  <span className="text-[0.65rem] text-blue-600/80 uppercase font-black tracking-wide block mt-1.5 flex items-center gap-1">
+                <h4 className="font-black text-blue-900 dark:text-blue-300 text-sm mb-1 uppercase tracking-wider">Your Existing Reservation Details</h4>
+                <p className="text-xs text-blue-700 dark:text-blue-400/80 leading-relaxed font-bold">
+                  You already have a reservation on PC {formData.pcNumber.replace('PC-', '')} for <span className="text-blue-900 dark:text-blue-300 underline">{selectedPCReservation.reserved_date}</span> at <span className="text-blue-900 dark:text-blue-300 underline">{selectedPCReservation.reserved_time}</span>.
+                  <span className="text-[0.65rem] text-blue-600/80 dark:text-blue-400/70 uppercase font-black tracking-wide block mt-1.5 flex items-center gap-1">
                     ⚠️ Note: Your new reservation must be at least 3 hours before or after this slot.
                   </span>
                 </p>
               </div>
             </div>
           ) : (
-            <div className="bg-[#5a189a]/5 border border-[#5a189a]/20 rounded-2xl p-5 flex items-start gap-4 shadow-sm shadow-[#5a189a]/5">
-              <div className="w-10 h-10 bg-[#5a189a]/10 rounded-xl flex items-center justify-center text-[#5a189a] shrink-0">
+            <div className="bg-[#5a189a]/5 dark:bg-[#5a189a]/10 border border-[#5a189a]/20 dark:border-[#5a189a]/30 rounded-2xl p-5 flex items-start gap-4 shadow-sm shadow-[#5a189a]/5 dark:shadow-none">
+              <div className="w-10 h-10 bg-[#5a189a]/10 dark:bg-[#5a189a]/20 rounded-xl flex items-center justify-center text-[#5a189a] dark:text-[#c77dff] shrink-0">
                 <Monitor size={20} className="stroke-[2.5]" />
               </div>
               <div>
-                <h4 className="font-black text-[#5a189a] text-sm mb-1 uppercase tracking-wider">PC Existing Reservation Details</h4>
-                <p className="text-xs text-[#5a189a]/90 leading-relaxed font-bold">
-                  This PC is already reserved by student ID No. <span className="text-[#5a189a] underline">{selectedPCReservation.student_id_number}</span> for <span className="text-[#5a189a] underline">{selectedPCReservation.reserved_date}</span> at <span className="text-[#5a189a] underline">{selectedPCReservation.reserved_time}</span>.
-                  <span className="text-[0.65rem] text-[#5a189a]/70 uppercase font-black tracking-wide block mt-1.5 flex items-center gap-1">
+                <h4 className="font-black text-[#5a189a] dark:text-[#c77dff] text-sm mb-1 uppercase tracking-wider">PC Existing Reservation Details</h4>
+                <p className="text-xs text-[#5a189a]/90 dark:text-[#e0aaff]/80 leading-relaxed font-bold">
+                  This PC is already reserved by student ID No. <span className="text-[#5a189a] dark:text-[#e0aaff] underline">{selectedPCReservation.student_id_number}</span> for <span className="text-[#5a189a] dark:text-[#e0aaff] underline">{selectedPCReservation.reserved_date}</span> at <span className="text-[#5a189a] dark:text-[#e0aaff] underline">{selectedPCReservation.reserved_time}</span>.
+                  <span className="text-[0.65rem] text-[#5a189a]/70 dark:text-[#e0aaff]/70 uppercase font-black tracking-wide block mt-1.5 flex items-center gap-1">
                     ⚠️ Note: Your new reservation must be at least 3 hours before or after this slot.
                   </span>
                 </p>
@@ -1099,6 +1129,7 @@ const Step2PCSelection = ({ availablePCs, formData, setFormData, loading, onShow
                         ${isSelected ? 'ring-2 ring-[#9d4edd] ring-offset-2 scale-110 z-10' : ''}
                         ${isDisabled ? 'bg-red-50/30 border-red-100 text-red-200 cursor-not-allowed' :
                           isMaintenance ? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed' :
+                            isSelected ? 'bg-[#3c096c] text-white border-[#3c096c] shadow-md shadow-[#3c096c]/20' :
                             isSessionActive ? 'bg-[#ff9100] text-white border-[#ff9100] hover:bg-[#e07a00] transition-all transform shadow-md shadow-[#ff9100]/20' :
                               isMine && isReservedSlot && slotStatus === 'approved' ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20' :
                                 isMine && isReservedSlot && slotStatus === 'pending' ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 shadow-sm' :
@@ -1106,7 +1137,6 @@ const Step2PCSelection = ({ availablePCs, formData, setFormData, loading, onShow
                                     isReservedSlot && slotStatus === 'approved' ? 'bg-[#5a189a] text-white border-[#5a189a] hover:bg-[#3c096c] transition-all transform shadow-md shadow-[#5a189a]/20' :
                                       isReservedSlot && slotStatus === 'pending' ? 'bg-[#5a189a]/10 border-[#5a189a]/30 text-[#5a189a] hover:bg-[#5a189a]/20 shadow-sm' :
                                         isReserved ? 'bg-[#5a189a]/10 border-[#5a189a]/30 text-[#5a189a] hover:border-[#5a189a]/60 shadow-sm' :
-                                          isSelected ? 'bg-[#3c096c]/10 text-[#3c096c] border-[#3c096c]' :
                                             'text-gray-600 border-gray-100 hover:bg-gray-50 hover:text-[#3c096c] hover:border-[#3c096c]/30'}`}
                     >
                       <div className="relative">
@@ -1115,34 +1145,46 @@ const Step2PCSelection = ({ availablePCs, formData, setFormData, loading, onShow
                           strokeWidth={isSelected || isMine ? 2.5 : 2}
                           className={isDisabled ? 'text-red-100' :
                             isMaintenance ? 'text-gray-200' :
+                              isSelected ? 'text-white' :
                               isSessionActive ? 'text-white/80' :
                                 isMine && isReservedSlot && slotStatus === 'approved' ? 'text-white' :
                                   isMine ? 'text-blue-500' :
                                     isReservedSlot && slotStatus === 'approved' ? 'text-white/60' :
                                       isReserved || isReservedSlot ? 'text-[#5a189a]/40' :
-                                        isSelected ? 'text-[#3c096c]' :
                                           pc.available ? 'text-gray-700' : 'text-gray-200'}
                         />
-                        {isSessionActive && (
-                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-white rounded-full border border-[#ff9100] animate-pulse" />
-                        )}
-                        {(isReserved || isReservedSlot) && !isMine && !isSessionActive && (
-                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-[#5a189a] rounded-full border border-white animate-pulse" />
-                        )}
-                        {isMine && !isSessionActive && (
-                          <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full border-2 border-white" />
+                        {pc.all_reservations && pc.all_reservations.length > 1 ? (
+                          <div className={`absolute -top-1.5 -right-1.5 min-w-[15px] h-[15px] px-[4px] rounded-full border border-white flex items-center justify-center shadow-sm z-10 
+                            ${isSessionActive ? 'bg-[#ff9100]' : isMine ? 'bg-blue-500' : 'bg-[#5a189a]'}`}>
+                            <span className="text-[0.5rem] font-black text-white leading-none tracking-tighter">
+                              {pc.all_reservations.length}
+                            </span>
+                          </div>
+                        ) : (
+                          <>
+                            {isSessionActive && (
+                              <div className="absolute -top-1 -right-1 w-2 h-2 bg-white rounded-full border border-[#ff9100] animate-pulse" />
+                            )}
+                            {(isReserved || isReservedSlot) && !isMine && !isSessionActive && (
+                              <div className="absolute -top-1 -right-1 w-2 h-2 bg-[#5a189a] rounded-full border border-white animate-pulse" />
+                            )}
+                            {isMine && !isSessionActive && (
+                              <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full border-2 border-white" />
+                            )}
+                          </>
                         )}
                       </div>
                       <span className={`text-[0.65rem] font-black tracking-tight 
                         ${isDisabled ? 'text-red-200' :
                           isMaintenance ? 'text-gray-300' :
+                            isSelected ? 'text-white' :
                             isSessionActive ? 'text-white' :
                               isMine && isReservedSlot && slotStatus === 'approved' ? 'text-white' :
                                 isMine ? 'text-blue-600' :
                                   isReservedSlot && slotStatus === 'approved' ? 'text-white' :
                                     isReservedSlot && slotStatus === 'pending' ? 'text-[#5a189a]' :
                                       isReserved ? 'text-[#5a189a]' :
-                                        isSelected ? 'text-[#3c096c]' : 'text-gray-500'}`}>
+                                        'text-gray-500'}`}>
                         {isSessionActive ? 'ACTIVE' : isMine ? 'YOURS' : `PC ${pcLabel.padStart(2, '0')}`}
                       </span>
                     </button>

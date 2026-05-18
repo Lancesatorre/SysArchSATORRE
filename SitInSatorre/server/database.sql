@@ -133,3 +133,76 @@ ON DUPLICATE KEY UPDATE lab_name=lab_name;
 INSERT INTO students (id_number, first_name, last_name, email, course, year_level, password) 
 VALUES ('20230001', 'Test', 'User', 'test@example.com', 'BSIT', 1, '$2y$10$YNMdYr.0wpvWk5a8a7MK4.lCJRvHLnFhHEcOQFvNwcT0C1yLsWuvi')
 ON DUPLICATE KEY UPDATE email=email;
+
+-- Create PCs table
+CREATE TABLE IF NOT EXISTS pcs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    lab_id INT NOT NULL,
+    pc_number VARCHAR(50) NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'available',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_lab_id (lab_id),
+    INDEX idx_pc_number (pc_number),
+    INDEX idx_status (status),
+    CONSTRAINT fk_pcs_lab FOREIGN KEY (lab_id) REFERENCES labs(id) ON DELETE CASCADE
+);
+
+-- Create Software table
+CREATE TABLE IF NOT EXISTS software (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(150) NOT NULL UNIQUE,
+    version VARCHAR(50) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    description TEXT,
+    installation_date DATE,
+    license_type VARCHAR(50) NOT NULL DEFAULT 'Open Source',
+    status VARCHAR(30) NOT NULL DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Create Software Labs table
+CREATE TABLE IF NOT EXISTS software_labs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    software_id INT NOT NULL,
+    lab_id INT NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'Active',
+    UNIQUE KEY uniq_software_lab (software_id, lab_id),
+    CONSTRAINT fk_software_labs_software FOREIGN KEY (software_id) REFERENCES software(id) ON DELETE CASCADE,
+    CONSTRAINT fk_software_labs_lab FOREIGN KEY (lab_id) REFERENCES labs(id) ON DELETE CASCADE
+);
+
+-- Create Testimonials table
+CREATE TABLE IF NOT EXISTS testimonials (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id_number VARCHAR(50) NOT NULL,
+    rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    feedback TEXT NOT NULL,
+    status ENUM('pending', 'approved', 'declined') DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_testimonial_student (student_id_number),
+    INDEX idx_testimonial_status (status),
+    CONSTRAINT fk_testimonials_student FOREIGN KEY (student_id_number) REFERENCES students(id_number) ON DELETE CASCADE
+);
+
+-- Create Notification Reads table
+CREATE TABLE IF NOT EXISTS notification_reads (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id_number VARCHAR(50) NOT NULL,
+    announcement_id INT NOT NULL,
+    read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_student_announcement (student_id_number, announcement_id),
+    INDEX idx_notification_reads_student (student_id_number),
+    INDEX idx_notification_reads_announcement (announcement_id),
+    CONSTRAINT fk_notification_reads_announcement FOREIGN KEY (announcement_id) REFERENCES announcements(id) ON DELETE CASCADE
+);
+
+-- Create Time Slots table
+CREATE TABLE IF NOT EXISTS time_slots (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    slot_name VARCHAR(50) NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    is_active TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

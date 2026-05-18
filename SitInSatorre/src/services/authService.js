@@ -855,6 +855,47 @@ export const authService = {
   },
 
   // =========================
+  // TESTIMONIALS MODERATION SYSTEM
+  // =========================
+  studentGetTestimonial: async (idNumber) => {
+    try {
+      return await apiRequest("studentGetTestimonial", { idNumber });
+    } catch (error) {
+      throw new Error(error.message || "Failed to get student testimonial");
+    }
+  },
+
+  studentSubmitTestimonial: async (idNumber, rating, feedback) => {
+    try {
+      return await apiRequest("studentSubmitTestimonial", { idNumber, rating, feedback });
+    } catch (error) {
+      throw new Error(error.message || "Failed to submit testimonial");
+    }
+  },
+
+  adminListTestimonials: async () => {
+    try {
+      return await apiRequest("adminListTestimonials", {
+        adminId: authService.getAdminId(),
+      });
+    } catch (error) {
+      throw new Error(error.message || "Failed to load testimonials");
+    }
+  },
+
+  adminModerateTestimonial: async (id, status) => {
+    try {
+      return await apiRequest("adminModerateTestimonial", {
+        adminId: authService.getAdminId(),
+        id,
+        status,
+      });
+    } catch (error) {
+      throw new Error(error.message || "Failed to moderate testimonial");
+    }
+  },
+
+  // =========================
   // DYNAMIC ACTION PATH RESOLVER
   // =========================
   getActionUrl: (actionFile) => {

@@ -198,6 +198,7 @@ export default function Dashboard() {
   const initials = `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() || 'S'
 
   const formatHoursAndMinutes = (hoursVal) => {
+    if (hoursVal === null || hoursVal === undefined || isNaN(hoursVal) || Number(hoursVal) <= 0) return '-'
     const totalMinutes = Math.round(hoursVal * 60)
     const h = Math.floor(totalMinutes / 60)
     const m = totalMinutes % 60
@@ -208,6 +209,24 @@ export default function Dashboard() {
 
   return (
     <div className="pt-2 sm:pt-3 pb-4 sm:pb-6 px-1 sm:px-2 flex">
+      <style>{`
+        .announcement-card {
+          background-color: #ffffff !important;
+          border-color: #f3f4f6 !important;
+        }
+        .dark .announcement-card {
+          background-color: #18181b !important;
+          border-color: #27272a !important;
+        }
+        .announcement-modal {
+          background-color: #ffffff !important;
+          border-color: #e5e7eb !important;
+        }
+        .dark .announcement-modal {
+          background-color: #18181b !important;
+          border-color: #27272a !important;
+        }
+      `}</style>
       <div className="max-w-380 mx-auto w-full flex flex-col gap-6 sm:gap-8 lg:gap-10 flex-1">
 
         {/* ── GREETING BANNER ── */}
@@ -255,7 +274,7 @@ export default function Dashboard() {
               {/* Session badge */}
               <div className="flex items-center gap-2.5 bg-white/10 border border-white/15 rounded-full px-4 sm:px-5 py-2.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#ff9100] animate-pulse" />
-                <span className="text-sm font-semibold text-white/80">Available Sessions: {user.session}</span>
+                <span className="text-sm font-semibold text-white/80">Available Sessions: {(user?.session === null || user?.session === undefined || isNaN(user.session)) ? '-' : user.session}</span>
               </div>
 
             </div>
@@ -341,22 +360,6 @@ export default function Dashboard() {
                           .animate-donut-segment {
                             animation: strokeAnim 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
                           }
-                          .announcement-card {
-                            background-color: #ffffff !important;
-                            border-color: #f3f4f6 !important;
-                          }
-                          .dark .announcement-card {
-                            background-color: #18181b !important;
-                            border-color: #27272a !important;
-                          }
-                          .announcement-modal {
-                            background-color: #ffffff !important;
-                            border-color: #e5e7eb !important;
-                          }
-                          .dark .announcement-modal {
-                            background-color: #18181b !important;
-                            border-color: #27272a !important;
-                          }
                         `}</style>
 
                         {/* Breathtaking Animated SVG Doughnut Chart */}
@@ -441,9 +444,8 @@ export default function Dashboard() {
                             return (
                               <div
                                 key={index}
-                                className={`flex items-center justify-between text-xs font-bold p-1.5 rounded-xl transition-all duration-300 cursor-pointer ${
-                                  isHovered ? 'bg-[#3c096c]/05 scale-102 translate-x-1' : 'hover:bg-gray-50/80'
-                                }`}
+                                className={`flex items-center justify-between text-xs font-bold p-1.5 rounded-xl transition-all duration-300 cursor-pointer ${isHovered ? 'bg-[#3c096c]/05 scale-102 translate-x-1' : 'hover:bg-gray-50/80'
+                                  }`}
                                 onMouseEnter={() => setHoveredIndex(index)}
                                 onMouseLeave={() => setHoveredIndex(null)}
                               >
@@ -470,7 +472,7 @@ export default function Dashboard() {
 
                 <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between text-[0.6rem] font-black text-gray-400 uppercase tracking-widest shrink-0">
                   <span>Data Mode</span>
-                  <span className="text-[#ff9100]">Live Tracker</span>
+                  <span className="text-[#ff9100]">Tracker</span>
                 </div>
               </div>
             </div>

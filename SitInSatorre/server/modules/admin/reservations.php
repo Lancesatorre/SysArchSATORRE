@@ -1,11 +1,12 @@
 <?php
 
-function handle_admin_get_reservations(mysqli $db, array $input): void {
+function handle_admin_get_reservations(mysqli $db, array $input): void
+{
     try {
         // Auto mark approved reservations as absent if they are 15 minutes past start time (time_from)
         $current_date = date('Y-m-d');
         $current_time = date('H:i:s');
-        
+
         $cleanup_sql = "UPDATE reservations 
                         SET status = 'failed_to_appear' 
                         WHERE status = 'approved' 
@@ -94,14 +95,16 @@ function handle_admin_get_reservations(mysqli $db, array $input): void {
     }
 }
 
-function create_notification(mysqli $db, int $student_id, string $type, string $title, string $message): bool {
+function create_notification(mysqli $db, int $student_id, string $type, string $title, string $message): bool
+{
     $sql = "INSERT INTO student_notifications (student_id, type, title, message) VALUES (?, ?, ?, ?)";
     $stmt = $db->prepare($sql);
     $stmt->bind_param('isss', $student_id, $type, $title, $message);
     return $stmt->execute();
 }
 
-function handle_admin_approve_reservation(mysqli $db, array $input): void {
+function handle_admin_approve_reservation(mysqli $db, array $input): void
+{
     $id = intval($input['id'] ?? 0);
     if ($id <= 0) {
         json_response(400, ['success' => false, 'message' => 'Invalid reservation ID']);
@@ -119,11 +122,11 @@ function handle_admin_approve_reservation(mysqli $db, array $input): void {
         $sql = "UPDATE reservations SET status = 'approved', approved_at = CURRENT_TIMESTAMP WHERE id = ?";
         $stmt = $db->prepare($sql);
         $stmt->bind_param('i', $id);
-        
+
         if ($stmt->execute()) {
             create_notification(
-                $db, 
-                intval($res_info['student_id']), 
+                $db,
+                intval($res_info['student_id']),
                 'reservation_approved',
                 'Reservation Approved',
                 "Your reservation for " . $res_info['lab_name'] . " (Unit " . $res_info['pc_number'] . ") has been approved."
@@ -137,10 +140,11 @@ function handle_admin_approve_reservation(mysqli $db, array $input): void {
     }
 }
 
-function handle_admin_decline_reservation(mysqli $db, array $input): void {
+function handle_admin_decline_reservation(mysqli $db, array $input): void
+{
     $id = intval($input['id'] ?? 0);
     $reason = esc($db, $input['reason'] ?? 'No reason provided');
-    
+
     if ($id <= 0) {
         json_response(400, ['success' => false, 'message' => 'Invalid reservation ID']);
     }
@@ -157,11 +161,11 @@ function handle_admin_decline_reservation(mysqli $db, array $input): void {
         $sql = "UPDATE reservations SET status = 'declined', decline_reason = ? WHERE id = ?";
         $stmt = $db->prepare($sql);
         $stmt->bind_param('si', $reason, $id);
-        
+
         if ($stmt->execute()) {
             create_notification(
-                $db, 
-                intval($res_info['student_id']), 
+                $db,
+                intval($res_info['student_id']),
                 'reservation_declined',
                 'Reservation Declined',
                 "Your reservation for " . $res_info['lab_name'] . " was declined. Reason: " . $reason
@@ -175,7 +179,8 @@ function handle_admin_decline_reservation(mysqli $db, array $input): void {
     }
 }
 
-function handle_admin_get_time_slots(mysqli $db, array $input): void {
+function handle_admin_get_time_slots(mysqli $db, array $input): void
+{
     try {
         $sql = "SELECT * FROM time_slots WHERE is_active = 1 ORDER BY start_time ASC";
         $result = $db->query($sql);
@@ -189,19 +194,23 @@ function handle_admin_get_time_slots(mysqli $db, array $input): void {
     }
 }
 
-function handle_admin_get_lab_pcs(mysqli $db, array $input): void {
+function handle_admin_get_lab_pcs(mysqli $db, array $input): void
+{
     $lab_id = intval($input['lab_id'] ?? 0);
     if ($lab_id <= 0) {
         json_response(400, ['success' => false, 'message' => 'Invalid lab ID']);
     }
 
     try {
+        $lab_q = $db->query("SELECT lab_name FROM labs WHERE id = $lab_id");
+        $lab_name = $lab_q->fetch_assoc()['lab_name'] ?? '';
+
         $sql = "SELECT * FROM pcs WHERE lab_id = ? ORDER BY CAST(REPLACE(pc_number, 'PC-', '') AS UNSIGNED) ASC";
         $stmt = $db->prepare($sql);
         $stmt->bind_param('i', $lab_id);
         $stmt->execute();
         $result = $stmt->get_result();
-        
+
         $pcs = [];
         $current_time = date('H:i:s');
         $current_date = date('Y-m-d');
@@ -219,6 +228,41 @@ function handle_admin_get_lab_pcs(mysqli $db, array $input): void {
             $is_reserved = $now_stmt->get_result()->num_rows > 0;
 
             $row['is_reserved'] = $is_reserved;
+
+            $all_sql = "SELECT id, status FROM reservations 
+                       WHERE pc_id = ? 
+                       AND reservation_date >= ?
+                       AND status IN ('pending', 'approved', 'active')";
+            $all_stmt = $db->prepare($all_sql);
+            $all_stmt->bind_param('is', $row['id'], $current_date);
+            $all_stmt->execute();
+            $all_res = $all_stmt->get_result();
+            $all_reservations = [];
+            while ($r = $all_res->fetch_assoc()) {
+                $all_reservations[] = $r;
+            }
+
+            // Check for active sit-in sessions (walk-ins) for this PC
+            $sess_sql = "SELECT id FROM sit_in_sessions WHERE pc_number = ? AND room = ? AND status = 'active'";
+            $sess_stmt = $db->prepare($sess_sql);
+            $sess_stmt->bind_param('ss', $row['pc_number'], $lab_name);
+            $sess_stmt->execute();
+            if ($sess_stmt->get_result()->num_rows > 0) {
+                // Check if we already have an active reservation to avoid duplicate count
+                $already_has_active = false;
+                foreach ($all_reservations as $res) {
+                    if ($res['status'] === 'active') {
+                        $already_has_active = true;
+                        break;
+                    }
+                }
+                if (!$already_has_active) {
+                    $all_reservations[] = ['id' => 'active_session', 'status' => 'active'];
+                }
+            }
+
+            $row['all_reservations'] = $all_reservations;
+
             $pcs[] = $row;
         }
         json_response(200, ['success' => true, 'data' => $pcs]);
@@ -227,10 +271,11 @@ function handle_admin_get_lab_pcs(mysqli $db, array $input): void {
     }
 }
 
-function handle_admin_update_pc_status(mysqli $db, array $input): void {
+function handle_admin_update_pc_status(mysqli $db, array $input): void
+{
     $pc_id = intval($input['pc_id'] ?? 0);
     $status = esc($db, $input['status'] ?? 'available');
-    
+
     if ($pc_id <= 0) {
         json_response(400, ['success' => false, 'message' => 'Invalid PC ID']);
     }
@@ -239,7 +284,7 @@ function handle_admin_update_pc_status(mysqli $db, array $input): void {
         $sql = "UPDATE pcs SET status = ? WHERE id = ?";
         $stmt = $db->prepare($sql);
         $stmt->bind_param('si', $status, $pc_id);
-        
+
         if ($stmt->execute()) {
             json_response(200, ['success' => true, 'message' => 'PC status updated']);
         } else {
@@ -249,7 +294,8 @@ function handle_admin_update_pc_status(mysqli $db, array $input): void {
         json_response(500, ['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
     }
 }
-function handle_admin_create_time_slot(mysqli $db, array $input): void {
+function handle_admin_create_time_slot(mysqli $db, array $input): void
+{
     $name = esc($db, $input['slot_name'] ?? '');
     $start = esc($db, $input['start_time'] ?? '');
     $end = esc($db, $input['end_time'] ?? '');
@@ -271,7 +317,7 @@ function handle_admin_create_time_slot(mysqli $db, array $input): void {
         $sql = "INSERT INTO time_slots (slot_name, start_time, end_time) VALUES (?, ?, ?)";
         $stmt = $db->prepare($sql);
         $stmt->bind_param('sss', $name, $start, $end);
-        
+
         if ($stmt->execute()) {
             json_response(201, ['success' => true, 'message' => 'Time slot created']);
         } else {
@@ -282,7 +328,8 @@ function handle_admin_create_time_slot(mysqli $db, array $input): void {
     }
 }
 
-function handle_admin_delete_time_slot(mysqli $db, array $input): void {
+function handle_admin_delete_time_slot(mysqli $db, array $input): void
+{
     $id = intval($input['id'] ?? 0);
     if ($id <= 0) {
         json_response(400, ['success' => false, 'message' => 'Invalid slot ID']);
@@ -292,7 +339,7 @@ function handle_admin_delete_time_slot(mysqli $db, array $input): void {
         $sql = "DELETE FROM time_slots WHERE id = ?";
         $stmt = $db->prepare($sql);
         $stmt->bind_param('i', $id);
-        
+
         if ($stmt->execute()) {
             json_response(200, ['success' => true, 'message' => 'Time slot deleted']);
         } else {
@@ -302,7 +349,8 @@ function handle_admin_delete_time_slot(mysqli $db, array $input): void {
         json_response(500, ['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
     }
 }
-function handle_admin_clear_all_time_slots(mysqli $db, array $input): void {
+function handle_admin_clear_all_time_slots(mysqli $db, array $input): void
+{
     try {
         $sql = "DELETE FROM time_slots";
         if ($db->query($sql)) {
@@ -314,7 +362,8 @@ function handle_admin_clear_all_time_slots(mysqli $db, array $input): void {
         json_response(500, ['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
     }
 }
-function handle_admin_update_lab_status(mysqli $db, array $input): void {
+function handle_admin_update_lab_status(mysqli $db, array $input): void
+{
     $lab_id = intval($input['lab_id'] ?? 0);
     $status = esc($db, $input['status'] ?? '');
 
@@ -326,7 +375,7 @@ function handle_admin_update_lab_status(mysqli $db, array $input): void {
         $sql = "UPDATE labs SET status = ? WHERE id = ?";
         $stmt = $db->prepare($sql);
         $stmt->bind_param('si', $status, $lab_id);
-        
+
         if ($stmt->execute()) {
             json_response(200, ['success' => true, 'message' => 'Laboratory status updated']);
         } else {
@@ -337,7 +386,8 @@ function handle_admin_update_lab_status(mysqli $db, array $input): void {
     }
 }
 
-function handle_admin_bulk_update_pc_status(mysqli $db, array $input): void {
+function handle_admin_bulk_update_pc_status(mysqli $db, array $input): void
+{
     $pc_ids = $input['pc_ids'] ?? [];
     $status = esc($db, $input['status'] ?? '');
 
@@ -348,7 +398,7 @@ function handle_admin_bulk_update_pc_status(mysqli $db, array $input): void {
     try {
         $ids_str = implode(',', array_map('intval', $pc_ids));
         $sql = "UPDATE pcs SET status = '$status' WHERE id IN ($ids_str)";
-        
+
         if ($db->query($sql)) {
             json_response(200, ['success' => true, 'message' => 'Workstations updated successfully']);
         } else {
@@ -358,7 +408,8 @@ function handle_admin_bulk_update_pc_status(mysqli $db, array $input): void {
         json_response(500, ['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
     }
 }
-function handle_get_audit_history(mysqli $db, array $input): void {
+function handle_get_audit_history(mysqli $db, array $input): void
+{
     $search = esc($db, $input['search'] ?? '');
     $status = esc($db, $input['status'] ?? '');
     $page = intval($input['page'] ?? 1);
@@ -384,7 +435,7 @@ function handle_get_audit_history(mysqli $db, array $input): void {
                 $where 
                 ORDER BY r.created_at DESC 
                 LIMIT $limit OFFSET $offset";
-        
+
         $result = $db->query($sql);
         $logs = [];
         while ($row = $result->fetch_assoc()) {
@@ -402,13 +453,15 @@ function handle_get_audit_history(mysqli $db, array $input): void {
     }
 }
 
-function handle_start_session(mysqli $db, array $input): void {
+function handle_start_session(mysqli $db, array $input): void
+{
     $id = intval($input['id'] ?? 0);
-    if ($id <= 0) json_response(400, ['success' => false, 'message' => 'Invalid ID']);
+    if ($id <= 0)
+        json_response(400, ['success' => false, 'message' => 'Invalid ID']);
 
     try {
         $db->begin_transaction();
-        
+
         // 1. Get reservation info
         $res_sql = "SELECT r.*, s.id_number, l.lab_name 
                     FROM reservations r 
@@ -433,7 +486,7 @@ function handle_start_session(mysqli $db, array $input): void {
 
         $session_sql = "INSERT INTO sit_in_sessions (student_id, student_id_number, reservation_id, room, purpose, pc_number, status)
                         VALUES ($student_id, '$student_id_number', $id, '$room', '$purpose', '$pc_number', 'active')";
-        
+
         if ($db->query($session_sql)) {
             $db->commit();
             json_response(200, ['success' => true, 'message' => 'Session started and moved to Current Sessions']);
@@ -446,9 +499,11 @@ function handle_start_session(mysqli $db, array $input): void {
     }
 }
 
-function handle_mark_absent(mysqli $db, array $input): void {
+function handle_mark_absent(mysqli $db, array $input): void
+{
     $id = intval($input['id'] ?? 0);
-    if ($id <= 0) json_response(400, ['success' => false, 'message' => 'Invalid ID']);
+    if ($id <= 0)
+        json_response(400, ['success' => false, 'message' => 'Invalid ID']);
 
     try {
         $db->begin_transaction();
@@ -456,12 +511,12 @@ function handle_mark_absent(mysqli $db, array $input): void {
         // 1. Get PC ID to re-enable
         $res_q = "SELECT pc_id FROM reservations WHERE id = $id";
         $res = $db->query($res_q)->fetch_assoc();
-        
+
         // 2. Update reservation status
         $sql = "UPDATE reservations SET status = 'failed_to_appear' WHERE id = ? AND status = 'approved'";
         $stmt = $db->prepare($sql);
         $stmt->bind_param('i', $id);
-        
+
         if ($stmt->execute() && $stmt->affected_rows > 0) {
             // 3. Automatically re-enable PC
             if ($res) {
@@ -479,11 +534,13 @@ function handle_mark_absent(mysqli $db, array $input): void {
     }
 }
 
-function handle_end_session(mysqli $db, array $input): void {
+function handle_end_session(mysqli $db, array $input): void
+{
     $id = intval($input['id'] ?? 0);
     $feedback = esc($db, $input['adminFeedback'] ?? '');
-    
-    if ($id <= 0) json_response(400, ['success' => false, 'message' => 'Invalid ID']);
+
+    if ($id <= 0)
+        json_response(400, ['success' => false, 'message' => 'Invalid ID']);
 
     try {
         $db->begin_transaction();
@@ -491,7 +548,7 @@ function handle_end_session(mysqli $db, array $input): void {
         // 1. Get Reservation & PC Info
         $res_q = "SELECT pc_id, student_id FROM reservations WHERE id = $id AND status = 'active'";
         $res = $db->query($res_q)->fetch_assoc();
-        
+
         if (!$res) {
             throw new Exception('Active reservation not found.');
         }
@@ -503,7 +560,7 @@ function handle_end_session(mysqli $db, array $input): void {
         if ($sess) {
             $sess_id = $sess['id'];
             $started_at = $sess['started_at'];
-            
+
             // Calculate duration using SQL to be safe
             $calc_q = "SELECT NOW() as now_time, TIMESTAMPDIFF(MINUTE, '$started_at', NOW()) as duration";
             $calc = $db->query($calc_q)->fetch_assoc();
@@ -516,30 +573,31 @@ function handle_end_session(mysqli $db, array $input): void {
                       VALUES 
                       (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'admin')";
             $stmt = $db->prepare($ins_q);
-            $stmt->bind_param('iisissssss', 
-                $sess_id, 
-                $sess['student_id'], 
-                $sess['student_id_number'], 
-                $id, 
-                $sess['room'], 
-                $sess['purpose'], 
-                $started_at, 
-                $ended_at, 
-                $duration, 
+            $stmt->bind_param(
+                'iisissssss',
+                $sess_id,
+                $sess['student_id'],
+                $sess['student_id_number'],
+                $id,
+                $sess['room'],
+                $sess['purpose'],
+                $started_at,
+                $ended_at,
+                $duration,
                 $feedback
             );
             $stmt->execute();
 
             // Delete active session
             $db->query("DELETE FROM sit_in_sessions WHERE id = $sess_id");
-            
+
             // Deduct session from student
             $db->query("UPDATE students SET available_sessions = available_sessions - 1 WHERE id = " . $sess['student_id']);
         }
-        
+
         // 3. Update reservation status
         $db->query("UPDATE reservations SET status = 'completed' WHERE id = $id");
-        
+
         // 4. Re-enable PC
         $db->query("UPDATE pcs SET status = 'available' WHERE id = " . $res['pc_id']);
 

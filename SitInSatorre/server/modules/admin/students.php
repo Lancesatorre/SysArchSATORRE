@@ -104,3 +104,80 @@ function handle_admin_delete_student(mysqli $db, array $input): void {
 
     json_response(200, ['success' => true, 'message' => 'Student deleted successfully']);
 }
+
+function handle_admin_list_testimonials(mysqli $db, array $input): void {
+    require_admin_access($input);
+
+    // Fetch all student testimonials
+    $sql = "SELECT 
+            t.id,
+            t.student_id_number,
+            t.rating,
+            t.feedback,
+            t.status,
+            t.created_at,
+            s.first_name,
+            s.last_name,
+            s.course,
+            s.profile_picture
+            FROM testimonials t
+            JOIN students s ON t.student_id_number = s.id_number
+            ORDER BY t.created_at DESC";
+            
+    $result = $db->query($sql);
+    
+    if (!$result) {
+        json_response(500, ['success' => false, 'message' => 'Failed to load testimonials']);
+    }
+    
+    $testimonials = [];
+    while ($row = $result->fetch_assoc()) {
+        $testimonials[] = [
+            'id' => intval($row['id']),
+            'student_id_number' => $row['student_id_number'],
+            'first_name' => $row['first_name'],
+            'last_name' => $row['last_name'],
+            'course' => $row['course'],
+            'rating' => intval($row['rating']),
+            'feedback' => $row['feedback'],
+            'status' => $row['status'],
+            'profile_picture' => $row['profile_picture'],
+            'created_at' => $row['created_at']
+        ];
+    }
+    
+    json_response(200, [
+        'success' => true,
+        'data' => $testimonials
+    ]);
+}
+
+function handle_admin_moderate_testimonial(mysqli $db, array $input): void {
+    require_admin_access($input);
+
+    $id = intval($input['id'] ?? 0);
+    $status = esc($db, trim($input['status'] ?? ''));
+
+    if ($id <= 0) {
+        json_response(400, ['success' => false, 'message' => 'Invalid testimonial ID']);
+    }
+    if (!in_array($status, ['approved', 'declined', 'pending'], true)) {
+        json_response(400, ['success' => false, 'message' => 'Invalid moderation status']);
+    }
+
+    $sql = "UPDATE testimonials SET status = ? WHERE id = ?";
+    $stmt = $db->prepare($sql);
+    if (!$stmt) {
+        json_response(500, ['success' => false, 'message' => 'Prepare failed: ' . $db->error]);
+    }
+
+    $stmt->bind_param('si', $status, $id);
+    if ($stmt->execute()) {
+        json_response(200, [
+            'success' => true,
+            'message' => 'Testimonial status updated to ' . $status
+        ]);
+    } else {
+        json_response(500, ['success' => false, 'message' => 'Failed to update testimonial status']);
+    }
+}

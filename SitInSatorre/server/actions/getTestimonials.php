@@ -13,28 +13,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once '../database.php';
 
 try {
-    // Self-healing database structure check
-    $conn->query("ALTER TABLE sit_in_records ADD COLUMN IF NOT EXISTS student_rating INT DEFAULT 5");
-    $conn->query("ALTER TABLE sit_in_records ADD COLUMN IF NOT EXISTS likes_count INT DEFAULT 0");
+    // Self-healing database structure check to guarantee likes_count column
+    $conn->query("ALTER TABLE testimonials ADD COLUMN IF NOT EXISTS likes_count INT DEFAULT 0");
 
-    // Fetch the 6 most recent 4 or 5-star testimonials with non-empty feedback, sorted by likes count DESC
+    // Fetch the 6 most popular approved system testimonials, sorted by likes count DESC
     $sql = "SELECT 
-            r.id as record_id,
-            r.student_feedback,
-            r.student_rating,
-            COALESCE(r.likes_count, 0) as likes,
-            r.room,
-            r.ended_at,
+            t.id as record_id,
+            t.feedback as student_feedback,
+            t.rating as student_rating,
+            COALESCE(t.likes_count, 0) as likes,
+            t.created_at as ended_at,
             s.first_name,
             s.last_name,
             s.course,
             s.profile_picture
-            FROM sit_in_records r
-            JOIN students s ON r.student_id = s.id
-            WHERE r.student_feedback IS NOT NULL 
-            AND TRIM(r.student_feedback) != ''
-            AND r.student_rating >= 4
-            ORDER BY likes DESC, r.id DESC
+            FROM testimonials t
+            JOIN students s ON t.student_id_number = s.id_number
+            WHERE t.status = 'approved'
+            ORDER BY likes DESC, t.id DESC
             LIMIT 6";
             
     $result = $conn->query($sql);
@@ -50,7 +46,7 @@ try {
             'first_name' => $row['first_name'],
             'last_name' => $row['last_name'],
             'course' => $row['course'],
-            'room' => $row['room'],
+            'room' => 'System Review',
             'rating' => intval($row['student_rating']),
             'likes' => intval($row['likes']),
             'feedback' => $row['student_feedback'],

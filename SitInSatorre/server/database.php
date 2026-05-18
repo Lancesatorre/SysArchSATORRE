@@ -33,230 +33,56 @@ function connect_db(): mysqli {
 }
 
 function initialize_schema(mysqli $db): void {
-    $create_students_table = "
-    CREATE TABLE IF NOT EXISTS students (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        id_number VARCHAR(50) UNIQUE NOT NULL,
-        first_name VARCHAR(100) NOT NULL,
-        last_name VARCHAR(100) NOT NULL,
-        middle_name VARCHAR(100),
-        email VARCHAR(100) UNIQUE NOT NULL,
-        course VARCHAR(50),
-        year_level INT,
-        address VARCHAR(255),
-        available_sessions INT NOT NULL DEFAULT 30,
-        profile_picture LONGTEXT,
-        password VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )";
-
-    if (!$db->query($create_students_table)) {
-        debug_log('Failed to create students table: ' . $db->error);
+    $sql_path = __DIR__ . '/database.sql';
+    if (!file_exists($sql_path)) {
+        debug_log('Database SQL schema file not found at: ' . $sql_path);
+        return;
     }
 
-    $create_sessions_table = "
-    CREATE TABLE IF NOT EXISTS sit_in_sessions (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        student_id INT NOT NULL,
-        student_id_number VARCHAR(50) NOT NULL,
-        room VARCHAR(50) DEFAULT NULL,
-        purpose VARCHAR(255) DEFAULT NULL,
-        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        ended_at TIMESTAMP NULL DEFAULT NULL,
-        status ENUM('active', 'ended') NOT NULL DEFAULT 'active',
-        ended_by VARCHAR(50) DEFAULT NULL,
-        INDEX idx_student_id (student_id),
-        INDEX idx_student_id_number (student_id_number),
-        INDEX idx_status (status),
-        CONSTRAINT fk_sit_in_sessions_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
-    )";
-
-    if (!$db->query($create_sessions_table)) {
-        debug_log('Failed to create sit_in_sessions table: ' . $db->error);
+    $sql_content = file_get_contents($sql_path);
+    
+    // Remove multi-line comments
+    $sql_content = preg_replace('!/\*.*?\*/!s', '', $sql_content);
+    
+    // Remove inline and single-line comments
+    $sql_content = preg_replace('/--.*$/m', '', $sql_content);
+    $sql_content = preg_replace('/#.*$/m', '', $sql_content);
+    
+    // Split into individual lines to assemble queries
+    $lines = explode("\n", $sql_content);
+    $queries = [];
+    $current_query = '';
+    
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if (empty($line)) {
+            continue;
+        }
+        
+        $current_query .= ' ' . $line;
+        
+        // If the line ends with a semicolon, it's a complete query
+        if (substr(rtrim($line), -1) === ';') {
+            $queries[] = trim($current_query);
+            $current_query = '';
+        }
     }
-
-    $create_records_table = "
-    CREATE TABLE IF NOT EXISTS sit_in_records (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        session_id INT NOT NULL,
-        student_id INT NOT NULL,
-        student_id_number VARCHAR(50) NOT NULL,
-        room VARCHAR(50) DEFAULT NULL,
-        purpose VARCHAR(255) DEFAULT NULL,
-        started_at DATETIME NOT NULL,
-        ended_at DATETIME NOT NULL,
-        duration_minutes INT NOT NULL DEFAULT 0,
-        status VARCHAR(30) NOT NULL DEFAULT 'Completed',
-        admin_feedback TEXT DEFAULT NULL,
-        student_feedback TEXT DEFAULT NULL,
-        ended_by VARCHAR(50) DEFAULT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_record_student_id (student_id),
-        INDEX idx_record_student_id_number (student_id_number),
-        INDEX idx_record_created (created_at)
-    )";
-
-    if (!$db->query($create_records_table)) {
-        debug_log('Failed to create sit_in_records table: ' . $db->error);
+    
+    // Execute all parsed queries in order
+    foreach ($queries as $query) {
+        // Skip database creation and database selection statements since connection handles that
+        if (stripos($query, 'CREATE DATABASE') === 0 || stripos($query, 'USE ') === 0) {
+            continue;
+        }
+        
+        if (!$db->query($query)) {
+            debug_log('Failed to execute central database.sql query: ' . $db->error . ' | Query: ' . substr($query, 0, 150));
+        }
     }
-
-    $create_announcements_table = "
-    CREATE TABLE IF NOT EXISTS announcements (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        title VARCHAR(150) NOT NULL,
-        message TEXT NOT NULL,
-        tag VARCHAR(30) NOT NULL DEFAULT 'General',
-        created_by VARCHAR(50) NOT NULL DEFAULT 'admin',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_announcement_created (created_at)
-    )";
-
-    if (!$db->query($create_announcements_table)) {
-        debug_log('Failed to create announcements table: ' . $db->error);
-    }
-
-    $create_notification_reads_table = "
-    CREATE TABLE IF NOT EXISTS notification_reads (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        student_id_number VARCHAR(50) NOT NULL,
-        announcement_id INT NOT NULL,
-        read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE KEY uniq_student_announcement (student_id_number, announcement_id),
-        INDEX idx_notification_reads_student (student_id_number),
-        INDEX idx_notification_reads_announcement (announcement_id),
-        CONSTRAINT fk_notification_reads_announcement FOREIGN KEY (announcement_id) REFERENCES announcements(id) ON DELETE CASCADE
-    )";
-
-    if (!$db->query($create_notification_reads_table)) {
-        debug_log('Failed to create notification_reads table: ' . $db->error);
-    }
-
-    $create_labs_table = "
-    CREATE TABLE IF NOT EXISTS labs (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        lab_name VARCHAR(100) NOT NULL,
-        floor INT DEFAULT NULL,
-        capacity INT DEFAULT 40,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_lab_name (lab_name)
-    )";
-
-    if (!$db->query($create_labs_table)) {
-        debug_log('Failed to create labs table: ' . $db->error);
-    }
-
-    $create_reservations_table = "
-    CREATE TABLE IF NOT EXISTS reservations (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        student_id INT NOT NULL,
-        pc_id INT,
-        lab_id INT NOT NULL,
-        pc_number VARCHAR(50),
-        reservation_date DATE NOT NULL,
-        time_from TIME NOT NULL,
-        time_to TIME NOT NULL,
-        status VARCHAR(30) NOT NULL DEFAULT 'pending',
-        decline_reason TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        approved_at TIMESTAMP NULL DEFAULT NULL,
-        INDEX idx_student_id (student_id),
-        INDEX idx_lab_id (lab_id),
-        INDEX idx_status (status),
-        INDEX idx_reservation_date (reservation_date),
-        CONSTRAINT fk_reservations_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
-        CONSTRAINT fk_reservations_lab FOREIGN KEY (lab_id) REFERENCES labs(id) ON DELETE CASCADE
-    )";
-
-    $create_time_slots_table = "
-    CREATE TABLE IF NOT EXISTS time_slots (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        slot_name VARCHAR(50) NOT NULL,
-        start_time TIME NOT NULL,
-        end_time TIME NOT NULL,
-        is_active TINYINT(1) DEFAULT 1,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )";
-
-    if (!$db->query($create_time_slots_table)) {
-        debug_log('Failed to create time_slots table: ' . $db->error);
-    }
-
-    // Time slots will be managed by admin, no defaults inserted here
 
     // Add location and status columns to labs if they don't exist
     ensure_column_exists($db, 'labs', 'location', "ALTER TABLE labs ADD COLUMN location VARCHAR(100) DEFAULT 'CCS Building' AFTER lab_name");
     ensure_column_exists($db, 'labs', 'status', "ALTER TABLE labs ADD COLUMN status VARCHAR(30) NOT NULL DEFAULT 'active' AFTER capacity");
-
-    // Create PCs table
-    $create_pcs_table = "
-    CREATE TABLE IF NOT EXISTS pcs (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        lab_id INT NOT NULL,
-        pc_number VARCHAR(50) NOT NULL,
-        status VARCHAR(30) NOT NULL DEFAULT 'available',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_lab_id (lab_id),
-        INDEX idx_pc_number (pc_number),
-        INDEX idx_status (status),
-        CONSTRAINT fk_pcs_lab FOREIGN KEY (lab_id) REFERENCES labs(id) ON DELETE CASCADE
-    )";
-
-    if (!$db->query($create_pcs_table)) {
-        debug_log('Failed to create pcs table: ' . $db->error);
-    }
-
-    // Create Software table
-    $create_software_table = "
-    CREATE TABLE IF NOT EXISTS software (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(150) NOT NULL UNIQUE,
-        version VARCHAR(50) NOT NULL,
-        category VARCHAR(50) NOT NULL,
-        description TEXT,
-        installation_date DATE,
-        license_type VARCHAR(50) NOT NULL DEFAULT 'Open Source',
-        status VARCHAR(30) NOT NULL DEFAULT 'Active',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    )";
-
-    if (!$db->query($create_software_table)) {
-        debug_log('Failed to create software table: ' . $db->error);
-    }
-
-    // Create Software Labs join table
-    $create_software_labs_table = "
-    CREATE TABLE IF NOT EXISTS software_labs (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        software_id INT NOT NULL,
-        lab_id INT NOT NULL,
-        UNIQUE KEY uniq_software_lab (software_id, lab_id),
-        CONSTRAINT fk_software_labs_software FOREIGN KEY (software_id) REFERENCES software(id) ON DELETE CASCADE,
-        CONSTRAINT fk_software_labs_lab FOREIGN KEY (lab_id) REFERENCES labs(id) ON DELETE CASCADE
-    )";
-
-    if (!$db->query($create_software_labs_table)) {
-        debug_log('Failed to create software_labs table: ' . $db->error);
-    }
-
-    // Insert default labs if they don't exist
-    $default_labs = [
-        ['Lab 524', 'CCS Building - 5F', 5, 50],
-        ['Lab 526', 'CCS Building - 5F', 5, 50],
-        ['Lab 528', 'CCS Building - 5F', 5, 50],
-        ['Lab 530', 'CCS Building - 5F', 5, 50],
-        ['Lab 542', 'CCS Building - 5F', 5, 50],
-        ['Lab 544', 'CCS Building - 5F', 5, 50],
-    ];
-    foreach ($default_labs as $lab) {
-        $name = $lab[0];
-        $check = $db->query("SELECT 1 FROM labs WHERE lab_name = '$name'");
-        if ($check && $check->num_rows === 0) {
-            $stmt = $db->prepare("INSERT INTO labs (lab_name, location, floor, capacity, status) VALUES (?, ?, ?, ?, 'active')");
-            $stmt->bind_param('ssii', $lab[0], $lab[1], $lab[2], $lab[3]);
-            $stmt->execute();
-        }
-    }
 
     // Add UNIQUE constraint to lab_name and clean up duplicates
     ensure_unique_constraint($db, 'labs', 'lab_name');
@@ -282,15 +108,18 @@ function initialize_schema(mysqli $db): void {
 
     ensure_column_exists($db, 'students', 'profile_picture', "ALTER TABLE students ADD COLUMN profile_picture LONGTEXT AFTER address");
     ensure_column_exists($db, 'students', 'available_sessions', "ALTER TABLE students ADD COLUMN available_sessions INT NOT NULL DEFAULT 30 AFTER address");
+    ensure_column_exists($db, 'sit_in_sessions', 'reservation_id', "ALTER TABLE sit_in_sessions ADD COLUMN reservation_id INT DEFAULT NULL AFTER student_id_number");
     ensure_column_exists($db, 'sit_in_sessions', 'room', "ALTER TABLE sit_in_sessions ADD COLUMN room VARCHAR(50) DEFAULT NULL AFTER student_id_number");
     ensure_column_exists($db, 'sit_in_sessions', 'purpose', "ALTER TABLE sit_in_sessions ADD COLUMN purpose VARCHAR(255) DEFAULT NULL AFTER room");
     ensure_column_exists($db, 'sit_in_sessions', 'pc_number', "ALTER TABLE sit_in_sessions ADD COLUMN pc_number VARCHAR(50) DEFAULT NULL AFTER purpose");
+    ensure_column_exists($db, 'sit_in_records', 'reservation_id', "ALTER TABLE sit_in_records ADD COLUMN reservation_id INT DEFAULT NULL AFTER student_id_number");
     ensure_column_exists($db, 'sit_in_records', 'room', "ALTER TABLE sit_in_records ADD COLUMN room VARCHAR(50) DEFAULT NULL AFTER student_id_number");
     ensure_column_exists($db, 'sit_in_records', 'purpose', "ALTER TABLE sit_in_records ADD COLUMN purpose VARCHAR(255) DEFAULT NULL AFTER room");
     ensure_column_exists($db, 'sit_in_records', 'pc_number', "ALTER TABLE sit_in_records ADD COLUMN pc_number VARCHAR(50) DEFAULT NULL AFTER purpose");
     ensure_column_exists($db, 'sit_in_records', 'status', "ALTER TABLE sit_in_records ADD COLUMN status VARCHAR(30) NOT NULL DEFAULT 'Completed' AFTER duration_minutes");
     ensure_column_exists($db, 'sit_in_records', 'admin_feedback', "ALTER TABLE sit_in_records ADD COLUMN admin_feedback TEXT DEFAULT NULL AFTER status");
     ensure_column_exists($db, 'sit_in_records', 'student_feedback', "ALTER TABLE sit_in_records ADD COLUMN student_feedback TEXT DEFAULT NULL AFTER admin_feedback");
+    ensure_column_exists($db, 'sit_in_records', 'student_rating', "ALTER TABLE sit_in_records ADD COLUMN student_rating INT DEFAULT 5 AFTER student_feedback");
 
     // Keep announcement schema backward-compatible for older databases.
     ensure_column_exists($db, 'announcements', 'title', "ALTER TABLE announcements ADD COLUMN title VARCHAR(150) NOT NULL AFTER id");

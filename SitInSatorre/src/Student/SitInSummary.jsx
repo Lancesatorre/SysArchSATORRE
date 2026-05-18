@@ -49,9 +49,15 @@ export default function SitInSummary() {
   }, []);
 
   const formatDuration = (hours) => {
+    if (hours === null || hours === undefined || isNaN(hours) || Number(hours) <= 0) return "-";
     const h = Math.floor(hours);
     const m = Math.round((hours - h) * 60);
     return `${h}h ${m}m`;
+  };
+
+  const formatSessions = (count) => {
+    if (count === null || count === undefined || isNaN(count) || Number(count) <= 0) return "-";
+    return count;
   };
 
   if (loading && !stats) {
@@ -62,51 +68,40 @@ export default function SitInSummary() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-        <p className="text-red-800 text-sm font-medium">{error}</p>
-        <button
-          onClick={fetchStats}
-          className="mt-2 px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
-
-  if (!stats) {
-    return null;
-  }
+  const currentStats = stats || {
+    total_hours: 0,
+    session_count: 0,
+    average_duration: 0,
+    longest_session: 0
+  };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <SummaryCard
         icon={Clock}
         label="Total Hours"
-        value={formatDuration(stats.total_hours)}
+        value={formatDuration(currentStats.total_hours)}
         iconBg="bg-[#3c096c]/10"
         iconColor="text-[#3c096c]"
       />
       <SummaryCard
         icon={BarChart3}
         label="Sessions"
-        value={stats.session_count}
+        value={formatSessions(currentStats.session_count)}
         iconBg="bg-[#ff9100]/10"
         iconColor="text-[#ff9100]"
       />
       <SummaryCard
         icon={Zap}
         label="Avg Duration"
-        value={formatDuration(stats.average_duration)}
+        value={formatDuration(currentStats.average_duration)}
         iconBg="bg-yellow-100"
         iconColor="text-yellow-600"
       />
       <SummaryCard
         icon={Award}
         label="Longest Session"
-        value={formatDuration(stats.longest_session)}
+        value={formatDuration(currentStats.longest_session)}
         iconBg="bg-green-100"
         iconColor="text-green-600"
       />

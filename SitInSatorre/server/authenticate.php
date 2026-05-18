@@ -95,6 +95,10 @@ $routes = [
     'adminDeleteSoftware' => 'handle_admin_delete_software',
     'adminBulkAddSoftware' => 'handle_admin_bulk_add_software',
     'studentTopLabs' => 'handle_student_top_labs',
+    'studentGetTestimonial' => 'handle_student_get_testimonial',
+    'studentSubmitTestimonial' => 'handle_student_submit_testimonial',
+    'adminListTestimonials' => 'handle_admin_list_testimonials',
+    'adminModerateTestimonial' => 'handle_admin_moderate_testimonial',
 ];
 
 if ($request_method !== 'POST') {

@@ -21,10 +21,10 @@ try {
     }
     
     // Ensure likes_count column exists
-    $conn->query("ALTER TABLE sit_in_records ADD COLUMN IF NOT EXISTS likes_count INT DEFAULT 0");
+    $conn->query("ALTER TABLE testimonials ADD COLUMN IF NOT EXISTS likes_count INT DEFAULT 0");
     
     // Increment the likes count
-    $sql = "UPDATE sit_in_records SET likes_count = COALESCE(likes_count, 0) + 1 WHERE id = ?";
+    $sql = "UPDATE testimonials SET likes_count = COALESCE(likes_count, 0) + 1 WHERE id = ?";
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
         throw new Exception('Prepare failed: ' . $conn->error);
@@ -33,7 +33,7 @@ try {
     $stmt->bind_param('i', $record_id);
     if ($stmt->execute()) {
         // Fetch new likes count
-        $fetch_stmt = $conn->prepare("SELECT COALESCE(likes_count, 0) as likes FROM sit_in_records WHERE id = ?");
+        $fetch_stmt = $conn->prepare("SELECT COALESCE(likes_count, 0) as likes FROM testimonials WHERE id = ?");
         $fetch_stmt->bind_param('i', $record_id);
         $fetch_stmt->execute();
         $likes = $fetch_stmt->get_result()->fetch_assoc()['likes'] ?? 0;
@@ -41,7 +41,7 @@ try {
         echo json_encode([
             'success' => true,
             'likes' => intval($likes),
-            'message' => 'Testimonial liked'
+            'message' => 'Testimonial liked successfully'
         ]);
     } else {
         throw new Exception('Failed to update likes count');
