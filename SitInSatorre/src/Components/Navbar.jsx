@@ -67,7 +67,7 @@ const NavIcon = ({ d, cls = 'w-4 h-4' }) => (
 function NavLink({ to, children, onClick }) {
   const { pathname } = useLocation();
   const isActive = pathname === to || pathname.startsWith(to + '/');
-  
+
   const getLinkIcon = (path) => {
     const p = path.toLowerCase();
     if (p.includes('dashboard')) return 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6';
@@ -89,9 +89,8 @@ function NavLink({ to, children, onClick }) {
         borderBottom: isActive ? '2.5px solid #ff9100 ' : '',
         fontWeight: isActive ? 600 : 500,
       }}
-      className={`transition duration-300 px-2 xl:px-3 rounded-2xl flex items-center gap-1 xl:gap-1.5 pb-0.5 text-xs xl:text-sm font-semibold shrink-0 ${
-        isActive ? 'text-[#ff9100]' : 'text-white hover:text-[#ff9100]'
-      }`}
+      className={`transition duration-300 px-2 xl:px-3 rounded-2xl flex items-center gap-1 xl:gap-1.5 pb-0.5 text-xs xl:text-sm font-semibold shrink-0 ${isActive ? 'text-[#ff9100]' : 'text-white hover:text-[#ff9100]'
+        }`}
     >
       {iconD && <NavIcon d={iconD} cls='w-4 h-4 shrink-0' />}
       {children}
@@ -185,6 +184,8 @@ export default function Navbar() {
   const [sessionDropdownOpen, setSessionDropdownOpen] = useState(false);
   const [sessionModalOpen, setSessionModalOpen] = useState(false);
   const [hasActiveSession, setHasActiveSession] = useState(false);
+  const [pendingReservationCount, setPendingReservationCount] = useState(0);
+  const [pendingTestimonialCount, setPendingTestimonialCount] = useState(0);
 
   useEffect(() => {
     const syncUser = () => {
@@ -219,6 +220,28 @@ export default function Navbar() {
       setHasActiveSession(!!response.active_session);
     } catch (_) {
       setHasActiveSession(false);
+    }
+  };
+
+  const loadPendingReservationCount = async () => {
+    try {
+      const url = authService.getActionUrl('adminPendingReservationCount.php');
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) setPendingReservationCount(data.pending_count || 0);
+    } catch (_) {
+      // silently fail — badge stays at 0
+    }
+  };
+
+  const loadPendingTestimonialCount = async () => {
+    try {
+      const url = authService.getActionUrl('adminPendingTestimonialCount.php');
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) setPendingTestimonialCount(data.pending_count || 0);
+    } catch (_) {
+      // silently fail — badge stays at 0
     }
   };
 
@@ -348,6 +371,26 @@ export default function Navbar() {
     };
   }, [isLoggedIn, user?.id_number, user?.role]);
 
+  // Admin: Poll pending reservation + testimonial counts every 30 seconds
+  useEffect(() => {
+    if (!isLoggedIn || user?.role !== 'admin') return undefined;
+
+    const handleUpdate = () => {
+      loadPendingReservationCount();
+      loadPendingTestimonialCount();
+    };
+
+    handleUpdate();
+
+    const intervalId = setInterval(handleUpdate, 30000);
+    window.addEventListener('pendingCountChanged', handleUpdate);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('pendingCountChanged', handleUpdate);
+    };
+  }, [isLoggedIn, user?.role]);
+
   useEffect(() => {
     if (!selectedNotification) return;
 
@@ -434,8 +477,8 @@ export default function Navbar() {
         </div>
       )}
       <nav ref={navRef} className='sticky top-4 sm:top-5 z-40 min-h-[5vh] mx-3 sm:mx-4 md:mx-6 lg:mx-8 xl:mx-16 bg-[#3c096c]/90 backdrop-blur-md flex justify-between shadow-md shadow-[#ff9100]/20 items-center rounded-3xl px-3 sm:px-6 lg:px-8 mb-5 transition-all duration-300'>
-        <Link 
-          to={isLoggedIn ? dashboardPath : "/"} 
+        <Link
+          to={isLoggedIn ? dashboardPath : "/"}
           className='flex items-center justify-start flex-row gap-2 sm:gap-3 shrink-0 group cursor-pointer'
           onClick={() => {
             if (!isLoggedIn && pathname === '/') {
@@ -462,9 +505,8 @@ export default function Navbar() {
                     borderBottom: activeSection === 'home' ? '2.5px solid #ff9100' : '',
                     fontWeight: activeSection === 'home' ? 600 : 500,
                   }}
-                  className={`transition duration-300 px-3 pb-0.5 flex items-center gap-1.5 ${
-                    activeSection === 'home' ? 'text-[#ff9100] rounded-2xl' : 'text-white hover:text-[#ff9100] rounded-t-2xl rounded-b-none'
-                  }`}
+                  className={`transition duration-300 px-3 pb-0.5 flex items-center gap-1.5 ${activeSection === 'home' ? 'text-[#ff9100] rounded-2xl' : 'text-white hover:text-[#ff9100] rounded-t-2xl rounded-b-none'
+                    }`}
                 >
                   <NavIcon d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" cls="w-4 h-4 shrink-0" />
                   Home
@@ -476,9 +518,8 @@ export default function Navbar() {
                     borderBottom: activeSection === 'about' ? '2.5px solid #ff9100' : '',
                     fontWeight: activeSection === 'about' ? 600 : 500,
                   }}
-                  className={`transition duration-300 px-3 pb-0.5 flex items-center gap-1.5 ${
-                    activeSection === 'about' ? 'text-[#ff9100] rounded-2xl' : 'text-white hover:text-[#ff9100] rounded-t-2xl rounded-b-none'
-                  }`}
+                  className={`transition duration-300 px-3 pb-0.5 flex items-center gap-1.5 ${activeSection === 'about' ? 'text-[#ff9100] rounded-2xl' : 'text-white hover:text-[#ff9100] rounded-t-2xl rounded-b-none'
+                    }`}
                 >
                   <NavIcon d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" cls="w-4 h-4 shrink-0" />
                   About
@@ -490,9 +531,8 @@ export default function Navbar() {
                     borderBottom: activeSection === 'faqs' ? '2.5px solid #ff9100' : '',
                     fontWeight: activeSection === 'faqs' ? 600 : 500,
                   }}
-                  className={`transition duration-300 px-3 pb-0.5 flex items-center gap-1.5 ${
-                    activeSection === 'faqs' ? 'text-[#ff9100] rounded-2xl' : 'text-white hover:text-[#ff9100] rounded-t-2xl rounded-b-none'
-                  }`}
+                  className={`transition duration-300 px-3 pb-0.5 flex items-center gap-1.5 ${activeSection === 'faqs' ? 'text-[#ff9100] rounded-2xl' : 'text-white hover:text-[#ff9100] rounded-t-2xl rounded-b-none'
+                    }`}
                 >
                   <NavIcon d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" cls="w-4 h-4 shrink-0" />
                   FAQs
@@ -504,9 +544,8 @@ export default function Navbar() {
                     borderBottom: activeSection === 'testimonials' ? '2.5px solid #ff9100' : '',
                     fontWeight: activeSection === 'testimonials' ? 600 : 500,
                   }}
-                  className={`transition duration-300 px-3 pb-0.5 flex items-center gap-1.5 ${
-                    activeSection === 'testimonials' ? 'text-[#ff9100] rounded-2xl' : 'text-white hover:text-[#ff9100] rounded-t-2xl rounded-b-none'
-                  }`}
+                  className={`transition duration-300 px-3 pb-0.5 flex items-center gap-1.5 ${activeSection === 'testimonials' ? 'text-[#ff9100] rounded-2xl' : 'text-white hover:text-[#ff9100] rounded-t-2xl rounded-b-none'
+                    }`}
                 >
                   <NavIcon d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" cls="w-4 h-4 shrink-0" />
                   Testimonials
@@ -567,10 +606,28 @@ export default function Navbar() {
                   </>
                 )}
 
-                {isAdmin && <NavLink to="/admin/reservations">Reservation</NavLink>}
+                {isAdmin && (
+                  <div className="relative">
+                    <NavLink to="/admin/reservations">Reservation</NavLink>
+                    {pendingReservationCount > 0 && (
+                      <span className="absolute -top-2 -right-1 min-w-[18px] h-[18px] px-1 bg-[#ff9100] text-white text-[0.6rem] font-black rounded-full flex items-center justify-center shadow-sm shadow-[#ff9100]/40 animate-pulse">
+                        {pendingReservationCount > 99 ? '99+' : pendingReservationCount}
+                      </span>
+                    )}
+                  </div>
+                )}
                 {isAdmin && <NavLink to="/admin/software-management">Software</NavLink>}
                 {isAdmin && <NavLink to="/admin/generate-reports">Reports</NavLink>}
-                {isAdmin && <NavLink to="/admin/testimonials">Testimonials</NavLink>}
+                {isAdmin && (
+                  <div className="relative">
+                    <NavLink to="/admin/testimonials">Testimonials</NavLink>
+                    {pendingTestimonialCount > 0 && (
+                      <span className="absolute -top-2 -right-1 min-w-[18px] h-[18px] px-1 bg-[#ff9100] text-white text-[0.6rem] font-black rounded-full flex items-center justify-center shadow-sm shadow-[#ff9100]/40 animate-pulse">
+                        {pendingTestimonialCount > 99 ? '99+' : pendingTestimonialCount}
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {isAdmin ? (
                   <div ref={announcementRef} className='relative'>
@@ -876,7 +933,7 @@ export default function Navbar() {
             </svg>
           )}
         </button>
- 
+
         {/* Mobile menu */}
         {mobileMenuOpen && (
           <div className='xl:hidden absolute top-[calc(100%+8px)] left-0 right-0 bg-[#140828] text-white rounded-2xl border border-[#7b2cbf]/45 shadow-xl p-3 z-50'>

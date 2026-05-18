@@ -246,6 +246,7 @@ export default function ReservationWizard({ onClose, onSuccess }) {
       setLoading(true);
       setError(null);
       await authService.createReservation(formData);
+      window.dispatchEvent(new Event('pendingCountChanged'));
       onSuccess();
     } catch (err) {
       setError(err.message || 'An unexpected error occurred.');

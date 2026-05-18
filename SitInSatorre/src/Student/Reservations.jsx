@@ -118,6 +118,7 @@ export default function Reservations() {
     setCancelLoading(true);
     try {
       await authService.deleteReservation(pendingCancelReservation.id);
+      window.dispatchEvent(new Event('pendingCountChanged'));
       setShowCancelModal(false);
       setPendingCancelReservation(null);
       fetchReservations(true);

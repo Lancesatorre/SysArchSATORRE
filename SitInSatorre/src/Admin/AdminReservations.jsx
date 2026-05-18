@@ -935,7 +935,10 @@ export default function AdminReservations() {
 
 
 
-      if (res.success) fetchData();
+      if (res.success) {
+        fetchData();
+        window.dispatchEvent(new Event('pendingCountChanged'));
+      }
 
 
 
@@ -1038,6 +1041,7 @@ export default function AdminReservations() {
         setDeclineReason('');
 
 
+        window.dispatchEvent(new Event('pendingCountChanged'));
 
       }
 

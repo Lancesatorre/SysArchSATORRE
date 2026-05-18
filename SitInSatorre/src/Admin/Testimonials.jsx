@@ -81,6 +81,7 @@ export default function Testimonials() {
       if (result.success) {
         setSuccess(`Testimonial has been successfully ${status}.`);
         await fetchTestimonials();
+        window.dispatchEvent(new Event('pendingCountChanged'));
       } else {
         setError(result.message || 'Failed to update testimonial status');
       }
